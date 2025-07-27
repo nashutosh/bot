@@ -4,17 +4,29 @@ import os
 try:
     from google import genai
     from google.genai import types
+    GENAI_AVAILABLE = True
 except ImportError:
     print("Warning: google-genai not properly installed")
     genai = None
     types = None
+    GENAI_AVAILABLE = False
 
-# Initialize Gemini client
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+# Initialize Gemini client only if API key is available
+client = None
+if GENAI_AVAILABLE and os.environ.get("GEMINI_API_KEY"):
+    try:
+        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+    except Exception as e:
+        print(f"Warning: Failed to initialize Gemini client: {str(e)}")
+        client = None
 
 def generate_linkedin_post(prompt: str) -> str:
     """Generate a LinkedIn post using Gemini AI"""
     try:
+        if not client:
+            # Return a fallback response if Gemini is not available
+            return f"🚀 Exciting update: {prompt}\n\nThis is a sample LinkedIn post generated without AI. Connect your Gemini API key for AI-powered content generation!\n\n#LinkedIn #Content #Professional"
+        
         system_prompt = """You are a professional LinkedIn content creator. Create engaging, professional LinkedIn posts that:
         - Are authentic and valuable to the professional community
         - Use a conversational yet professional tone
@@ -49,6 +61,15 @@ def generate_linkedin_post(prompt: str) -> str:
 def summarize_text(text: str) -> str:
     """Summarize text content for LinkedIn post creation"""
     try:
+        if not client:
+            # Return a fallback summary if Gemini is not available
+            words = text.split()
+            if len(words) > 100:
+                summary = ' '.join(words[:100]) + "..."
+            else:
+                summary = text
+            return f"Key insights from the content:\n\n{summary}\n\n(Connect your Gemini API key for AI-powered summarization)"
+        
         prompt = f"""Summarize the following text into key points that would be suitable for creating a LinkedIn post. Focus on:
         - Main insights or learnings
         - Professional value or takeaways
@@ -75,6 +96,10 @@ def summarize_text(text: str) -> str:
 def generate_image_with_gemini(prompt: str, image_path: str) -> str:
     """Generate an image using Gemini's image generation capability"""
     try:
+        if not client:
+            # Return error message if Gemini is not available
+            raise Exception("Gemini API not available. Please configure your API key.")
+        
         response = client.models.generate_content(
             model="gemini-2.0-flash-preview-image-generation",
             contents=f"Create a professional image for LinkedIn post: {prompt}",

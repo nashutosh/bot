@@ -1,10 +1,11 @@
 import os
 import logging
 from flask import Flask
-from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_cors import CORS
 from config import config_dict
 from dotenv import load_dotenv
-from extensions import db, cors, limiter
+from extensions import db, limiter
+from routes import register_routes
 
 load_dotenv()
 
@@ -16,40 +17,50 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def create_app(config_name=None):
-    """Application factory pattern"""
+    """Create and configure the Flask application"""
+    
     if config_name is None:
         config_name = os.environ.get('FLASK_ENV', 'development')
     
     app = Flask(__name__)
     
     # Load configuration
-    app.config.from_object(config_dict.get(config_name, config_dict['default']))
+    app.config.from_object(config_dict.get(config_name, config_dict['development']))
+    
+    # Initialize extensions
+    db.init_app(app)
+    limiter.init_app(app)
+    CORS(app)
+    
+    # Register routes
+    register_routes(app)
     
     # Initialize configuration
     config_dict[config_name].init_app(app)
     
-    # Configure proxy fix for production
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    # Set up logging
+    if not app.debug and not app.testing:
+        logging.basicConfig(level=logging.INFO)
     
-    # Initialize extensions
-    db.init_app(app)
-    cors.init_app(app, origins=["http://localhost:3000", "http://localhost:5000"])
-    limiter.init_app(app)
-    
-    # Register error handlers
-    register_error_handlers(app)
-    
-    # Register blueprints/routes
+    # Create database tables
     with app.app_context():
-        # Import models to ensure they're registered
-        from models import User, Post, UploadedFile, AutomationRule, MarketingCampaign, LinkedInProfile
-        
-        # Create all database tables
-        db.create_all()
-        
-        # Import and register routes
-        from routes import register_routes
-        register_routes(app)
+        try:
+            # Import all models to ensure they are registered with SQLAlchemy
+            from models import (
+                User, Post, UploadedFile, AutomationRule, 
+                MarketingCampaign, LinkedInProfile, ActionLog
+            )
+            
+            # Create all tables
+            db.create_all()
+            
+            # Create default user if it doesn't exist
+            default_user = User.get_default_user()
+            print(f"✅ Database initialized. Default user: {default_user.username}")
+            
+        except Exception as e:
+            print(f"❌ Error initializing database: {str(e)}")
+            logging.error(f"Database initialization error: {str(e)}")
     
     return app
 
@@ -118,5 +129,8 @@ def register_error_handlers(app):
 app = create_app()
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=app.config['DEBUG'])
+    app.run(
+        host='0.0.0.0',
+        port=int(os.environ.get('PORT', 5000)),
+        debug=os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    )

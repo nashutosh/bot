@@ -16,6 +16,19 @@ class LinkedInMarketingAgent {
         this.loadDashboard();
         this.setupEventListeners();
         this.initializeCharts();
+        
+        // Check LinkedIn connection status
+        this.checkLinkedInStatus();
+        
+        // Load automation rules if on automation page
+        if (this.currentSection === 'automation') {
+            this.loadAutomationRules();
+        }
+        
+        // Load marketing dashboard if on marketing page
+        if (this.currentSection === 'marketing') {
+            this.loadMarketingDashboard();
+        }
     }
 
     setupEventListeners() {
@@ -520,6 +533,393 @@ class LinkedInMarketingAgent {
         document.getElementById('contentPrompt').value = '';
     }
     
+    // LinkedIn Connection Management
+    async connectLinkedIn() {
+        try {
+            this.showLoading('Connecting to LinkedIn...');
+            
+            // Get LinkedIn auth URL
+            const response = await this.apiCall('/api/linkedin-status', 'GET');
+            
+            if (response.success && response.auth_url) {
+                // Redirect to LinkedIn OAuth
+                window.location.href = response.auth_url;
+            } else {
+                this.hideLoading();
+                this.showNotification('Failed to initiate LinkedIn connection', 'error');
+            }
+        } catch (error) {
+            this.hideLoading();
+            this.showNotification('Network error. Please try again.', 'error');
+            console.error('LinkedIn connection error:', error);
+        }
+    }
+    
+    async checkLinkedInStatus() {
+        try {
+            const response = await this.apiCall('/api/linkedin-status', 'GET');
+            
+            if (response.success) {
+                const statusButton = document.getElementById('linkedinStatusBtn');
+                const statusText = document.getElementById('linkedinStatusText');
+                
+                if (response.connected && response.profile) {
+                    // Update UI to show connected status
+                    if (statusButton) {
+                        statusButton.innerHTML = `
+                            <i class="fab fa-linkedin text-blue-600"></i>
+                            Connected as ${response.profile.first_name} ${response.profile.last_name}
+                        `;
+                        statusButton.classList.remove('bg-gray-100');
+                        statusButton.classList.add('bg-green-100', 'text-green-800');
+                    }
+                    
+                    if (statusText) {
+                        statusText.textContent = `Connected as ${response.profile.first_name} ${response.profile.last_name}`;
+                        statusText.classList.remove('text-red-600');
+                        statusText.classList.add('text-green-600');
+                    }
+                } else {
+                    // Update UI to show disconnected status
+                    if (statusButton) {
+                        statusButton.innerHTML = `
+                            <i class="fab fa-linkedin text-gray-400"></i>
+                            Connect LinkedIn
+                        `;
+                        statusButton.classList.remove('bg-green-100', 'text-green-800');
+                        statusButton.classList.add('bg-gray-100');
+                    }
+                    
+                    if (statusText) {
+                        statusText.textContent = 'Not Connected';
+                        statusText.classList.remove('text-green-600');
+                        statusText.classList.add('text-red-600');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error checking LinkedIn status:', error);
+        }
+    }
+    
+    // Marketing Manager Functions
+    async loadMarketingDashboard() {
+        try {
+            this.showLoading('Loading marketing dashboard...');
+            
+            const response = await this.apiCall('/api/marketing/manager/dashboard', 'GET');
+            
+            this.hideLoading();
+            
+            if (response.success) {
+                this.displayMarketingDashboard(response.data);
+            } else {
+                this.showNotification('Failed to load marketing dashboard', 'error');
+            }
+        } catch (error) {
+            this.hideLoading();
+            this.showNotification('Network error loading dashboard', 'error');
+            console.error('Marketing dashboard error:', error);
+        }
+    }
+    
+    displayMarketingDashboard(data) {
+        const container = document.getElementById('marketingDashboard');
+        if (!container) return;
+        
+        const html = `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-bullhorn text-2xl text-blue-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Total Campaigns</p>
+                            <p class="text-2xl font-semibold text-gray-900">${data.campaigns.total}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-play-circle text-2xl text-green-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Active Campaigns</p>
+                            <p class="text-2xl font-semibold text-gray-900">${data.campaigns.active}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-heart text-2xl text-red-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Total Engagement</p>
+                            <p class="text-2xl font-semibold text-gray-900">${data.engagement.total}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-eye text-2xl text-purple-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Total Reach</p>
+                            <p class="text-2xl font-semibold text-gray-900">${data.reach.total}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Campaigns</h3>
+                    <div class="space-y-3">
+                        ${data.recent_campaigns.map(campaign => `
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div>
+                                    <p class="font-medium text-gray-900">${campaign.name}</p>
+                                    <p class="text-sm text-gray-500">${campaign.campaign_type}</p>
+                                </div>
+                                <span class="px-2 py-1 text-xs font-medium rounded-full ${this.getStatusColor(campaign.status)}">
+                                    ${campaign.status}
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Automation Statistics</h3>
+                    <div class="space-y-3">
+                        ${data.automation.today ? Object.entries(data.automation.today).map(([key, value]) => `
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 capitalize">${key}:</span>
+                                <span class="font-medium">${value}</span>
+                            </div>
+                        `).join('') : '<p class="text-gray-500">No automation data available</p>'}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
+    getStatusColor(status) {
+        const colors = {
+            'draft': 'bg-gray-100 text-gray-800',
+            'active': 'bg-green-100 text-green-800',
+            'paused': 'bg-yellow-100 text-yellow-800',
+            'completed': 'bg-blue-100 text-blue-800'
+        };
+        return colors[status] || 'bg-gray-100 text-gray-800';
+    }
+    
+    async createCampaign() {
+        const formData = new FormData(document.getElementById('campaignForm'));
+        const campaignData = {
+            name: formData.get('name'),
+            description: formData.get('description'),
+            campaign_type: formData.get('campaign_type'),
+            target_audience: {
+                industries: formData.getAll('industries'),
+                job_titles: formData.getAll('job_titles'),
+                locations: formData.getAll('locations')
+            },
+            content_strategy: {
+                themes: formData.getAll('themes'),
+                posting_frequency: formData.get('posting_frequency')
+            },
+            budget: parseFloat(formData.get('budget')) || 0
+        };
+        
+        this.showLoading('Creating campaign...');
+        
+        try {
+            const result = await this.apiCall('/api/marketing/campaigns', 'POST', campaignData);
+            
+            this.hideLoading();
+            
+            if (result.success) {
+                this.showNotification('Campaign created successfully!', 'success');
+                document.getElementById('campaignForm').reset();
+                this.loadMarketingDashboard(); // Refresh dashboard
+            } else {
+                this.showNotification(result.error || 'Failed to create campaign', 'error');
+            }
+        } catch (error) {
+            this.hideLoading();
+            this.showNotification('Network error. Please try again.', 'error');
+            console.error('Campaign creation error:', error);
+        }
+    }
+    
+    async createAutomationRule() {
+        const formData = new FormData(document.getElementById('automationForm'));
+        const ruleData = {
+            name: formData.get('name'),
+            rule_type: formData.get('rule_type'),
+            daily_limit: parseInt(formData.get('daily_limit')),
+            target_criteria: {
+                keywords: formData.get('keywords') ? formData.get('keywords').split(',').map(k => k.trim()) : [],
+                industries: formData.getAll('industries'),
+                job_titles: formData.getAll('job_titles')
+            },
+            action_template: formData.get('action_template'),
+            is_active: formData.get('is_active') === 'on'
+        };
+        
+        this.showLoading('Creating automation rule...');
+        
+        try {
+            const result = await this.apiCall('/api/automation/rules', 'POST', ruleData);
+            
+            this.hideLoading();
+            
+            if (result.success) {
+                this.showNotification('Automation rule created successfully!', 'success');
+                document.getElementById('automationForm').reset();
+                this.loadAutomationRules(); // Refresh rules list
+            } else {
+                this.showNotification(result.error || 'Failed to create rule', 'error');
+            }
+        } catch (error) {
+            this.hideLoading();
+            this.showNotification('Network error. Please try again.', 'error');
+            console.error('Automation rule creation error:', error);
+        }
+    }
+    
+    async loadAutomationRules() {
+        try {
+            const response = await this.apiCall('/api/automation/rules', 'GET');
+            
+            if (response.success) {
+                this.displayAutomationRules(response.rules);
+            } else {
+                this.showNotification('Failed to load automation rules', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Network error loading rules', 'error');
+            console.error('Load automation rules error:', error);
+        }
+    }
+    
+    displayAutomationRules(rules) {
+        const container = document.getElementById('automationRulesList');
+        if (!container) return;
+        
+        const html = rules.map(rule => `
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">${rule.name}</h3>
+                    <span class="px-2 py-1 text-xs font-medium rounded-full ${rule.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                        ${rule.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                </div>
+                
+                <div class="space-y-2 text-sm text-gray-600">
+                    <p><strong>Type:</strong> ${rule.rule_type}</p>
+                    <p><strong>Daily Limit:</strong> ${rule.daily_limit}</p>
+                    <p><strong>Success Rate:</strong> ${rule.total_actions > 0 ? Math.round((rule.successful_actions / rule.total_actions) * 100) : 0}%</p>
+                    <p><strong>Total Actions:</strong> ${rule.total_actions}</p>
+                </div>
+                
+                <div class="mt-4 flex space-x-2">
+                    <button onclick="executeAutomationRule(${rule.id})" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                        Execute
+                    </button>
+                    <button onclick="toggleAutomationRule(${rule.id})" class="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700">
+                        ${rule.is_active ? 'Pause' : 'Resume'}
+                    </button>
+                    <button onclick="deleteAutomationRule(${rule.id})" class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        container.innerHTML = html || '<p class="text-gray-500">No automation rules found.</p>';
+    }
+    
+    async executeAutomationRule(ruleId) {
+        this.showLoading('Executing automation rule...');
+        
+        try {
+            const result = await this.apiCall('/api/automation/execute', 'POST', {
+                rule_id: ruleId
+            });
+            
+            this.hideLoading();
+            
+            if (result.success) {
+                this.showNotification(result.message || 'Automation executed successfully!', 'success');
+                this.loadAutomationRules(); // Refresh rules
+            } else {
+                this.showNotification(result.error || 'Failed to execute automation', 'error');
+            }
+        } catch (error) {
+            this.hideLoading();
+            this.showNotification('Network error. Please try again.', 'error');
+            console.error('Execute automation error:', error);
+        }
+    }
+    
+    async toggleAutomationRule(ruleId) {
+        try {
+            // Get current rule status first
+            const rules = await this.apiCall('/api/automation/rules', 'GET');
+            const rule = rules.rules.find(r => r.id === ruleId);
+            
+            if (!rule) {
+                this.showNotification('Rule not found', 'error');
+                return;
+            }
+            
+            const result = await this.apiCall(`/api/automation/rules/${ruleId}`, 'PUT', {
+                is_active: !rule.is_active
+            });
+            
+            if (result.success) {
+                this.showNotification(result.message || 'Rule updated successfully!', 'success');
+                this.loadAutomationRules(); // Refresh rules
+            } else {
+                this.showNotification(result.error || 'Failed to update rule', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Network error. Please try again.', 'error');
+            console.error('Toggle automation rule error:', error);
+        }
+    }
+    
+    async deleteAutomationRule(ruleId) {
+        if (!confirm('Are you sure you want to delete this automation rule?')) {
+            return;
+        }
+        
+        try {
+            const result = await this.apiCall(`/api/automation/rules/${ruleId}`, 'DELETE');
+            
+            if (result.success) {
+                this.showNotification('Rule deleted successfully!', 'success');
+                this.loadAutomationRules(); // Refresh rules
+            } else {
+                this.showNotification(result.error || 'Failed to delete rule', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Network error. Please try again.', 'error');
+            console.error('Delete automation rule error:', error);
+        }
+    }
+    
     // Advanced Automation Methods
     async launchAutomatedCampaign() {
         const formData = new FormData(document.getElementById('campaignLaunchForm'));
@@ -901,6 +1301,31 @@ function regenerateContent() {
 function editContent() {
     // Implementation for editing generated content
     console.log('Edit content feature coming soon!');
+}
+
+// Global functions for automation rule management
+function executeAutomationRule(ruleId) {
+    if (window.linkedinAgent) {
+        window.linkedinAgent.executeAutomationRule(ruleId);
+    }
+}
+
+function toggleAutomationRule(ruleId) {
+    if (window.linkedinAgent) {
+        window.linkedinAgent.toggleAutomationRule(ruleId);
+    }
+}
+
+function deleteAutomationRule(ruleId) {
+    if (window.linkedinAgent) {
+        window.linkedinAgent.deleteAutomationRule(ruleId);
+    }
+}
+
+function connectLinkedIn() {
+    if (window.linkedinAgent) {
+        window.linkedinAgent.connectLinkedIn();
+    }
 }
 
 // Initialize the application when DOM is loaded
