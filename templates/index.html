@@ -29,40 +29,100 @@
     <div class="container mt-4">
         <!-- Statistics Cards -->
         <div class="row mb-4">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card">
                     <div class="card-body text-center">
                         <i class="fas fa-chart-line fa-2x text-primary mb-2"></i>
-                        <h5 class="card-title">Total Posts</h5>
-                        <h3 id="total-posts" class="text-primary">0</h3>
+                        <h6 class="card-title">Total Posts</h6>
+                        <h4 id="total-posts" class="text-primary">0</h4>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card">
                     <div class="card-body text-center">
                         <i class="fas fa-calendar-alt fa-2x text-warning mb-2"></i>
-                        <h5 class="card-title">Scheduled</h5>
-                        <h3 id="scheduled-posts" class="text-warning">0</h3>
+                        <h6 class="card-title">Scheduled</h6>
+                        <h4 id="scheduled-posts" class="text-warning">0</h4>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card">
                     <div class="card-body text-center">
                         <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                        <h5 class="card-title">Published</h5>
-                        <h3 id="published-posts" class="text-success">0</h3>
+                        <h6 class="card-title">Published</h6>
+                        <h4 id="published-posts" class="text-success">0</h4>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card">
                     <div class="card-body text-center">
-                        <button id="view-all-posts-btn" class="btn btn-outline-primary">
-                            <i class="fas fa-list me-2"></i>
-                            View All Posts
+                        <i class="fas fa-users fa-2x text-info mb-2"></i>
+                        <h6 class="card-title">Connections</h6>
+                        <h4 id="total-connections" class="text-info">0</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-bullhorn fa-2x text-danger mb-2"></i>
+                        <h6 class="card-title">Campaigns</h6>
+                        <h4 id="active-campaigns" class="text-danger">0</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <button id="view-automation-btn" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-robot me-1"></i>
+                            Automation
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Automation Controls -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-robot me-2"></i>
+                            LinkedIn Marketing Automation
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <button id="auto-accept-btn" class="btn btn-success w-100 mb-2">
+                                    <i class="fas fa-user-check me-1"></i>
+                                    Accept Connections
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button id="auto-follow-btn" class="btn btn-info w-100 mb-2">
+                                    <i class="fas fa-user-plus me-1"></i>
+                                    Follow Leaders
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button id="auto-engage-btn" class="btn btn-warning w-100 mb-2">
+                                    <i class="fas fa-heart me-1"></i>
+                                    Auto Engage
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button id="create-campaign-btn" class="btn btn-danger w-100 mb-2">
+                                    <i class="fas fa-bullhorn me-1"></i>
+                                    Marketing Campaign
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -148,6 +208,10 @@
                                 <button type="button" id="upload-pdf-btn" class="btn btn-outline-secondary">
                                     <i class="fas fa-file-pdf me-1"></i>
                                     Upload PDF
+                                </button>
+                                <button type="button" id="smart-campaign-btn" class="btn btn-outline-danger">
+                                    <i class="fas fa-magic me-1"></i>
+                                    Smart Campaign
                                 </button>
                             </div>
                         </form>
@@ -287,6 +351,96 @@
             </div>
             <div class="toast-body">
                 <span class="toast-message">Default message</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Marketing Campaign Modal -->
+    <div id="campaign-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-bullhorn me-2"></i>
+                    Create Marketing Campaign
+                </h5>
+                <button type="button" class="close-modal" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="campaign-form">
+                    <div class="mb-3">
+                        <label for="campaign-name" class="form-label">Campaign Name</label>
+                        <input type="text" id="campaign-name" class="form-control" placeholder="e.g., Product Launch 2025" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="product-name" class="form-label">Product/Service Name</label>
+                        <input type="text" id="product-name" class="form-control" placeholder="e.g., AI Assistant Pro" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="target-keywords" class="form-label">Target Keywords (comma-separated)</label>
+                        <input type="text" id="target-keywords" class="form-control" placeholder="AI, automation, productivity, business">
+                    </div>
+                    <div class="mb-3">
+                        <label for="pdf-select" class="form-label">Source PDF (optional)</label>
+                        <select id="pdf-select" class="form-select">
+                            <option value="">Select PDF for content inspiration</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancel-campaign" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="create-campaign" class="btn btn-primary">
+                    <i class="fas fa-rocket me-1"></i>
+                    Launch Campaign
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Automation Settings Modal -->
+    <div id="automation-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-robot me-2"></i>
+                    Automation Settings
+                </h5>
+                <button type="button" class="close-modal" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <h6>Auto-Engagement Keywords</h6>
+                    <input type="text" id="engagement-keywords" class="form-control" placeholder="AI, machine learning, productivity">
+                    <small class="form-text text-muted">Posts with these keywords will be automatically liked and commented on</small>
+                </div>
+                <div class="mb-3">
+                    <h6>Connection Message Template</h6>
+                    <textarea id="connection-message" class="form-control" rows="3" placeholder="Hi, I'd love to connect and share insights about AI and technology."></textarea>
+                </div>
+                <div class="mb-3">
+                    <h6>Daily Limits</h6>
+                    <div class="row">
+                        <div class="col-6">
+                            <label>Connections per day</label>
+                            <input type="number" id="daily-connections" class="form-control" value="50" min="1" max="100">
+                        </div>
+                        <div class="col-6">
+                            <label>Engagements per day</label>
+                            <input type="number" id="daily-engagements" class="form-control" value="100" min="1" max="300">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancel-automation" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="save-automation" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>
+                    Save Settings
+                </button>
             </div>
         </div>
     </div>

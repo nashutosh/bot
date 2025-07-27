@@ -1,688 +1,596 @@
-// Constants and Global Variables
-const API_URL = '/api';
+// LinkedIn AI Agent - Enhanced Marketing Automation
+console.log('Initializing LinkedIn AI Agent...');
 
-// Global state
-let currentContent = null;
-let currentImageUrl = null;
-let currentSchedule = null;
-let currentFile = null;
+let currentPosts = [];
+let currentFiles = [];
+let activeCampaigns = [];
 
-// Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("Initializing LinkedIn AI Agent...");
-    
-    // Initialize all components
-    initializeFormHandlers();
-    initializePdfUpload();
-    initializeContentPreview();
-    initializeToasts();
-    initializeStatsUpdate();
-    
-    // Load initial data
-    loadStats();
-    loadPostHistory();
+    initializeApp();
+    bindEventListeners();
+    loadInitialData();
 });
 
-// Form Handlers
-function initializeFormHandlers() {
-    const enableImageGen = document.getElementById('enable-image-gen');
-    const imagePromptGroup = document.getElementById('image-prompt-group');
-    const generateBtn = document.getElementById('generate-btn');
-    const contentPrompt = document.getElementById('content-prompt');
-    const imagePrompt = document.getElementById('image-prompt');
-    const scheduleInput = document.getElementById('schedule-input');
+function initializeApp() {
+    console.log('App initialized successfully');
     
-    // Image generation toggle
-    if (enableImageGen && imagePromptGroup) {
-        enableImageGen.addEventListener('change', function() {
-            imagePromptGroup.style.display = this.checked ? 'block' : 'none';
-            
-            if (!this.checked) {
-                const imagePreview = document.getElementById('image-preview');
-                if (imagePreview) {
-                    imagePreview.style.display = 'none';
-                    const img = imagePreview.querySelector('img');
-                    if (img) img.src = '';
-                }
-                if (imagePrompt) imagePrompt.value = '';
-                currentImageUrl = null;
-            }
-        });
-    }
-    
-    // Generate button
-    if (generateBtn) {
-        generateBtn.addEventListener('click', handleGenerate);
-    }
-    
-    // Schedule input change
-    if (scheduleInput) {
-        scheduleInput.addEventListener('change', function() {
-            currentSchedule = this.value;
-            updatePostButton();
-            updateScheduleDisplay();
+    // Initialize tooltips
+    if (typeof bootstrap !== 'undefined') {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     }
 }
 
-// PDF Upload Handlers
-function initializePdfUpload() {
-    const uploadPdfBtn = document.getElementById('upload-pdf-btn');
-    const pdfModal = document.getElementById('pdf-modal');
-    const closeModalBtn = document.querySelector('.close-modal');
-    const cancelUpload = document.getElementById('cancel-upload');
-    const uploadArea = document.getElementById('upload-area');
-    const fileUpload = document.getElementById('file-upload');
-    const processPdf = document.getElementById('process-pdf');
-    const removeFile = document.getElementById('remove-file');
+function bindEventListeners() {
+    // Existing listeners
+    document.getElementById('generate-btn')?.addEventListener('click', generateContent);
+    document.getElementById('upload-pdf-btn')?.addEventListener('click', triggerFileUpload);
+    document.getElementById('view-all-posts-btn')?.addEventListener('click', togglePostsList);
     
-    if (uploadPdfBtn && pdfModal) {
-        uploadPdfBtn.addEventListener('click', () => {
-            pdfModal.classList.add('active');
-        });
-        
-        [closeModalBtn, cancelUpload].forEach(btn => {
-            if (btn) {
-                btn.addEventListener('click', () => {
-                    pdfModal.classList.remove('active');
-                    resetFileUpload();
-                });
-            }
-        });
-        
-        if (uploadArea && fileUpload) {
-            uploadArea.addEventListener('click', () => fileUpload.click());
-            
-            fileUpload.addEventListener('change', function() {
-                if (this.files[0]) {
-                    handleFileSelection(this.files[0]);
-                }
-            });
-            
-            // Drag and drop
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('dragover');
-            });
-            
-            uploadArea.addEventListener('dragleave', () => {
-                uploadArea.classList.remove('dragover');
-            });
-            
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('dragover');
-                if (e.dataTransfer.files[0]) {
-                    handleFileSelection(e.dataTransfer.files[0]);
-                }
-            });
-        }
-        
-        if (processPdf) {
-            processPdf.addEventListener('click', handlePdfProcess);
-        }
-        
-        if (removeFile) {
-            removeFile.addEventListener('click', resetFileUpload);
-        }
-    }
-}
-
-// Content Preview Handlers
-function initializeContentPreview() {
-    const regenerateBtn = document.getElementById('regenerate-btn');
-    const postBtn = document.getElementById('post-btn');
-    const editContentBtn = document.getElementById('edit-content-btn');
-    const copyContentBtn = document.getElementById('copy-content-btn');
-    const viewAllPostsBtn = document.getElementById('view-all-posts-btn');
+    // New automation listeners
+    document.getElementById('auto-accept-btn')?.addEventListener('click', autoAcceptConnections);
+    document.getElementById('auto-follow-btn')?.addEventListener('click', autoFollowSuccessful);
+    document.getElementById('auto-engage-btn')?.addEventListener('click', autoEngagePosts);
+    document.getElementById('create-campaign-btn')?.addEventListener('click', showCampaignModal);
+    document.getElementById('smart-campaign-btn')?.addEventListener('click', smartCampaignFromPDF);
+    document.getElementById('view-automation-btn')?.addEventListener('click', showAutomationModal);
     
-    if (regenerateBtn) {
-        regenerateBtn.addEventListener('click', handleGenerate);
-    }
-    
-    if (postBtn) {
-        postBtn.addEventListener('click', handlePost);
-    }
-    
-    if (editContentBtn) {
-        editContentBtn.addEventListener('click', handleEditContent);
-    }
-    
-    if (copyContentBtn) {
-        copyContentBtn.addEventListener('click', handleCopyContent);
-    }
-    
-    if (viewAllPostsBtn) {
-        viewAllPostsBtn.addEventListener('click', () => {
-            showToast('All posts view coming soon!', 'info');
-        });
-    }
-}
-
-// Toast System
-function initializeToasts() {
-    const toastClose = document.querySelector('.toast-close');
-    if (toastClose) {
-        toastClose.addEventListener('click', hideToast);
-    }
-}
-
-// Stats Update
-function initializeStatsUpdate() {
-    setInterval(loadStats, 30000);
-}
-
-// Main Generation Handler
-async function handleGenerate() {
-    const contentPrompt = document.getElementById('content-prompt');
-    const imagePrompt = document.getElementById('image-prompt');
-    const enableImageGen = document.getElementById('enable-image-gen');
-    const generateBtn = document.getElementById('generate-btn');
-    
-    try {
-        // Validation
-        if (!contentPrompt?.value.trim()) {
-            showToast('Please enter a content prompt', 'error');
-            return;
-        }
-        
-        if (enableImageGen?.checked && !imagePrompt?.value.trim()) {
-            showToast('Image prompt is required when image generation is enabled', 'error');
-            return;
-        }
-        
-        // Set loading state
-        setButtonLoading(generateBtn, 'Generating...');
-        
-        // Generate content
-        const content = await generateContent(contentPrompt.value.trim());
-        currentContent = content;
-        
-        // Display generated text
-        const generatedText = document.getElementById('generated-text');
-        if (generatedText) {
-            generatedText.textContent = content;
-        }
-        
-        // Generate image if enabled
-        if (enableImageGen?.checked && imagePrompt?.value.trim()) {
-            try {
-                const imageUrl = await generateImage(imagePrompt.value.trim());
-                if (imageUrl) {
-                    currentImageUrl = imageUrl;
-                    displayGeneratedImage(imageUrl);
-                }
-            } catch (imageError) {
-                console.warn('Image generation failed:', imageError);
-                showToast('Content generated successfully, but image generation failed', 'warning');
-            }
-        }
-        
-        // Show preview
-        showContentPreview();
-        updatePostButton();
-        updateScheduleDisplay();
-        
-        showToast('Content generated successfully!', 'success');
-        
-    } catch (error) {
-        console.error('Generation error:', error);
-        showToast(error.message || 'Failed to generate content', 'error');
-    } finally {
-        resetButtonLoading(generateBtn, '<i class="fas fa-wand-magic-sparkles me-1"></i> Generate & Preview');
-    }
-}
-
-// PDF Processing Handler
-async function handlePdfProcess() {
-    const processPdf = document.getElementById('process-pdf');
-    const contentPrompt = document.getElementById('content-prompt');
-    const pdfModal = document.getElementById('pdf-modal');
-    
-    if (!currentFile) {
-        showToast('Please upload a PDF file first', 'error');
-        return;
-    }
-    
-    try {
-        setButtonLoading(processPdf, 'Processing...');
-        
-        const result = await uploadPdf(currentFile);
-        
-        if (result.success && result.summary) {
-            // Fill the content prompt with the summary
-            if (contentPrompt) {
-                contentPrompt.value = `Create a professional LinkedIn post based on the following content: ${result.summary}`;
-            }
-            
-            // Close modal and reset
-            pdfModal.classList.remove('active');
-            resetFileUpload();
-            
-            showToast('PDF processed successfully! Content prompt has been filled.', 'success');
-            
-            // Auto-generate after a short delay
-            setTimeout(() => {
-                const generateBtn = document.getElementById('generate-btn');
-                if (generateBtn) {
-                    generateBtn.click();
-                }
-            }, 500);
-        } else {
-            throw new Error(result.message || 'Failed to process PDF');
-        }
-        
-    } catch (error) {
-        console.error('PDF processing error:', error);
-        showToast(error.message || 'Failed to process PDF', 'error');
-    } finally {
-        resetButtonLoading(processPdf, '<i class="fas fa-cogs me-1"></i> Process PDF');
-    }
-}
-
-// Post Handler
-async function handlePost() {
-    const postBtn = document.getElementById('post-btn');
-    
-    if (!currentContent) {
-        showToast('Please generate content first', 'error');
-        return;
-    }
-    
-    try {
-        setButtonLoading(postBtn, 'Publishing...');
-        
-        const postData = {
-            content: currentContent,
-            post_type: currentImageUrl ? 'image' : 'text',
-            schedule_time: currentSchedule || null
-        };
-        
-        if (currentImageUrl) {
-            postData.image_url = currentImageUrl;
-        }
-        
-        const result = await createPost(postData);
-        
-        if (result.success) {
-            // Reset form and state
-            resetForm();
-            hideContentPreview();
-            
-            // Reload data
-            loadStats();
-            loadPostHistory();
-            
-            const message = currentSchedule ? 'Post scheduled successfully!' : 'Post published successfully!';
-            showToast(message, 'success');
-        } else {
-            throw new Error(result.message || 'Failed to create post');
-        }
-        
-    } catch (error) {
-        console.error('Post creation error:', error);
-        showToast(error.message || 'Failed to create post', 'error');
-    } finally {
-        resetButtonLoading(postBtn, currentSchedule ? 
-            '<i class="fas fa-calendar me-1"></i> Schedule Post' : 
-            '<i class="fas fa-paper-plane me-1"></i> Post Now');
-    }
-}
-
-// Edit Content Handler
-function handleEditContent() {
-    const contentPrompt = document.getElementById('content-prompt');
-    const contentPreview = document.getElementById('content-preview');
-    
-    if (currentContent && contentPrompt) {
-        contentPrompt.value = currentContent;
-        contentPrompt.focus();
-        
-        if (contentPreview) {
-            contentPreview.style.display = 'none';
-        }
-    }
-}
-
-// Copy Content Handler
-async function handleCopyContent() {
-    if (!currentContent) {
-        showToast('No content to copy', 'error');
-        return;
-    }
-    
-    try {
-        await navigator.clipboard.writeText(currentContent);
-        showToast('Content copied to clipboard!', 'success');
-    } catch (error) {
-        console.error('Copy failed:', error);
-        
-        // Fallback: select and copy
-        const textArea = document.createElement('textarea');
-        textArea.value = currentContent;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        showToast('Content copied to clipboard!', 'success');
-    }
-}
-
-// File Handling
-function handleFileSelection(file) {
-    if (file.type !== 'application/pdf') {
-        showToast('Please select a PDF file', 'error');
-        return;
-    }
-    
-    if (file.size > 16 * 1024 * 1024) { // 16MB
-        showToast('File size too large. Maximum size is 16MB', 'error');
-        return;
-    }
-    
-    currentFile = file;
-    
-    // Show file info
-    const uploadArea = document.getElementById('upload-area');
-    const uploadedFile = document.getElementById('uploaded-file');
-    const fileName = document.getElementById('file-name');
-    const fileSize = document.getElementById('file-size');
-    
-    if (uploadArea) uploadArea.style.display = 'none';
-    if (uploadedFile) uploadedFile.style.display = 'block';
-    if (fileName) fileName.textContent = file.name;
-    if (fileSize) fileSize.textContent = formatFileSize(file.size);
-}
-
-function resetFileUpload() {
-    currentFile = null;
-    
-    const uploadArea = document.getElementById('upload-area');
-    const uploadedFile = document.getElementById('uploaded-file');
-    const fileUpload = document.getElementById('file-upload');
-    
-    if (uploadArea) uploadArea.style.display = 'block';
-    if (uploadedFile) uploadedFile.style.display = 'none';
-    if (fileUpload) fileUpload.value = '';
-}
-
-// API Functions
-async function generateContent(prompt) {
-    const response = await fetch(`${API_URL}/generate-content`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt })
+    // Modal listeners
+    document.querySelectorAll('.close-modal').forEach(btn => {
+        btn.addEventListener('click', closeModal);
     });
     
-    const data = await response.json();
+    document.getElementById('create-campaign')?.addEventListener('click', createMarketingCampaign);
+    document.getElementById('cancel-campaign')?.addEventListener('click', closeModal);
+    document.getElementById('save-automation')?.addEventListener('click', saveAutomationSettings);
+    document.getElementById('cancel-automation')?.addEventListener('click', closeModal);
     
-    if (!data.success) {
-        throw new Error(data.error || 'Failed to generate content');
+    // File upload handler
+    document.getElementById('pdf-upload')?.addEventListener('change', handleFileUpload);
+}
+
+function loadInitialData() {
+    Promise.all([
+        fetchStats(),
+        fetchPosts(),
+        fetchFiles(),
+        fetchCampaigns()
+    ]).then(() => {
+        console.log('Initial data loaded');
+    }).catch(error => {
+        console.error('Error loading initial data:', error);
+    });
+}
+
+// Enhanced Stats Function
+async function fetchStats() {
+    try {
+        const response = await fetch('/api/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+            updateStatsUI(data.stats);
+        }
+    } catch (error) {
+        console.error('Error fetching stats:', error);
+    }
+}
+
+function updateStatsUI(stats) {
+    document.getElementById('total-posts').textContent = stats.total_posts || 0;
+    document.getElementById('scheduled-posts').textContent = stats.scheduled_posts || 0;
+    document.getElementById('published-posts').textContent = stats.published_posts || 0;
+    
+    // Update new automation stats
+    document.getElementById('total-connections').textContent = stats.total_connections || 0;
+    document.getElementById('active-campaigns').textContent = activeCampaigns.length || 0;
+}
+
+// Automation Functions
+async function autoAcceptConnections() {
+    const btn = document.getElementById('auto-accept-btn');
+    const originalText = btn.innerHTML;
+    
+    try {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+        btn.disabled = true;
+        
+        const response = await fetch('/api/automation/accept-connections', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', `Accepted ${data.accepted_count || 0} connection requests!`);
+        } else {
+            showToast('error', data.message || 'Failed to accept connections');
+        }
+        
+    } catch (error) {
+        console.error('Error in auto accept connections:', error);
+        showToast('error', 'Error processing connection requests');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function autoFollowSuccessful() {
+    const btn = document.getElementById('auto-follow-btn');
+    const originalText = btn.innerHTML;
+    
+    try {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Following...';
+        btn.disabled = true;
+        
+        const criteria = {
+            industries: ['Technology', 'Software', 'AI', 'Startups'],
+            positions: ['CEO', 'Founder', 'CTO', 'VP', 'Director'],
+            locations: ['United States', 'United Kingdom', 'Canada', 'Australia']
+        };
+        
+        const response = await fetch('/api/automation/follow-successful', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ criteria })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', `Followed ${data.followed_count || 0} successful profiles!`);
+        } else {
+            showToast('error', data.message || 'Failed to follow profiles');
+        }
+        
+    } catch (error) {
+        console.error('Error in auto follow:', error);
+        showToast('error', 'Error following profiles');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function autoEngagePosts() {
+    const btn = document.getElementById('auto-engage-btn');
+    const originalText = btn.innerHTML;
+    
+    try {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Engaging...';
+        btn.disabled = true;
+        
+        const keywords = ['AI', 'artificial intelligence', 'machine learning', 'automation', 'technology', 'innovation', 'startup', 'business'];
+        
+        const response = await fetch('/api/automation/engage-posts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ keywords })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', `Engaged with ${data.engaged_posts || 0} relevant posts!`);
+        } else {
+            showToast('error', data.message || 'Failed to engage with posts');
+        }
+        
+    } catch (error) {
+        console.error('Error in auto engage:', error);
+        showToast('error', 'Error engaging with posts');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+// Smart Campaign from PDF
+async function smartCampaignFromPDF() {
+    if (currentFiles.length === 0) {
+        showToast('warning', 'Please upload a PDF first to create a smart campaign');
+        return;
     }
     
-    return data.content;
+    // Auto-populate campaign modal with PDF data
+    const latestPDF = currentFiles[0];
+    document.getElementById('campaign-name').value = `Smart Campaign - ${latestPDF.original_filename.replace('.pdf', '')}`;
+    document.getElementById('product-name').value = 'AI-Powered Solution';
+    document.getElementById('target-keywords').value = 'AI, automation, technology, innovation, business growth';
+    
+    // Populate PDF selector
+    const pdfSelect = document.getElementById('pdf-select');
+    pdfSelect.innerHTML = '<option value="">Select PDF for content inspiration</option>';
+    currentFiles.forEach(file => {
+        const option = document.createElement('option');
+        option.value = file.id;
+        option.textContent = file.original_filename;
+        if (file === latestPDF) option.selected = true;
+        pdfSelect.appendChild(option);
+    });
+    
+    showCampaignModal();
+}
+
+// Campaign Management
+function showCampaignModal() {
+    // Load available PDFs
+    const pdfSelect = document.getElementById('pdf-select');
+    pdfSelect.innerHTML = '<option value="">Select PDF for content inspiration</option>';
+    
+    currentFiles.forEach(file => {
+        const option = document.createElement('option');
+        option.value = file.id;
+        option.textContent = file.original_filename;
+        pdfSelect.appendChild(option);
+    });
+    
+    document.getElementById('campaign-modal').style.display = 'flex';
+}
+
+async function createMarketingCampaign() {
+    const campaignName = document.getElementById('campaign-name').value;
+    const productName = document.getElementById('product-name').value;
+    const targetKeywords = document.getElementById('target-keywords').value.split(',').map(k => k.trim());
+    const pdfId = document.getElementById('pdf-select').value;
+    
+    if (!campaignName || !productName) {
+        showToast('error', 'Please fill in campaign name and product name');
+        return;
+    }
+    
+    const btn = document.getElementById('create-campaign');
+    const originalText = btn.innerHTML;
+    
+    try {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
+        btn.disabled = true;
+        
+        const response = await fetch('/api/marketing/create-campaign', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                campaign_name: campaignName,
+                product_info: { name: productName },
+                target_keywords: targetKeywords,
+                pdf_id: pdfId || null
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', `Campaign created! Scheduled ${data.posts_scheduled || 0} posts`);
+            closeModal();
+            fetchCampaigns();
+            fetchStats();
+        } else {
+            showToast('error', data.error || 'Failed to create campaign');
+        }
+        
+    } catch (error) {
+        console.error('Error creating campaign:', error);
+        showToast('error', 'Error creating marketing campaign');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function fetchCampaigns() {
+    try {
+        const response = await fetch('/api/marketing/campaigns');
+        const data = await response.json();
+        
+        if (data.success) {
+            activeCampaigns = data.campaigns;
+            updateStatsUI({ active_campaigns: activeCampaigns.length });
+        }
+    } catch (error) {
+        console.error('Error fetching campaigns:', error);
+    }
+}
+
+// Automation Settings
+function showAutomationModal() {
+    document.getElementById('automation-modal').style.display = 'flex';
+}
+
+async function saveAutomationSettings() {
+    const keywords = document.getElementById('engagement-keywords').value;
+    const message = document.getElementById('connection-message').value;
+    const dailyConnections = document.getElementById('daily-connections').value;
+    const dailyEngagements = document.getElementById('daily-engagements').value;
+    
+    // Save settings (could be stored in localStorage or sent to server)
+    localStorage.setItem('automation-settings', JSON.stringify({
+        keywords: keywords.split(',').map(k => k.trim()),
+        connectionMessage: message,
+        dailyLimits: {
+            connections: parseInt(dailyConnections),
+            engagements: parseInt(dailyEngagements)
+        }
+    }));
+    
+    showToast('success', 'Automation settings saved successfully!');
+    closeModal();
+}
+
+// Modal Management
+function closeModal() {
+    document.getElementById('campaign-modal').style.display = 'none';
+    document.getElementById('automation-modal').style.display = 'none';
+    
+    // Reset forms
+    document.getElementById('campaign-form')?.reset();
+}
+
+// Existing Functions (Updated)
+async function generateContent() {
+    const prompt = document.getElementById('content-prompt').value;
+    const includeImage = document.getElementById('include-image').checked;
+    
+    if (!prompt.trim()) {
+        showToast('error', 'Please enter a content prompt');
+        return;
+    }
+    
+    const btn = document.getElementById('generate-btn');
+    const originalText = btn.innerHTML;
+    
+    try {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating...';
+        btn.disabled = true;
+        
+        // Generate content
+        const contentResponse = await fetch('/api/generate-content', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ prompt })
+        });
+        
+        const contentData = await contentResponse.json();
+        
+        if (!contentData.success) {
+            throw new Error(contentData.error || 'Failed to generate content');
+        }
+        
+        // Display generated content
+        displayGeneratedContent(contentData.content);
+        
+        // Generate image if requested
+        if (includeImage) {
+            generateImage(prompt);
+        }
+        
+        showToast('success', 'Content generated successfully!');
+        
+    } catch (error) {
+        console.error('Error generating content:', error);
+        showToast('error', 'Error generating content: ' + error.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function displayGeneratedContent(content) {
+    const previewSection = document.getElementById('content-preview');
+    const contentDisplay = document.getElementById('generated-content');
+    
+    if (contentDisplay) {
+        contentDisplay.textContent = content;
+        previewSection.style.display = 'block';
+        
+        // Show publish options
+        const publishSection = document.getElementById('publish-options');
+        if (publishSection) {
+            publishSection.style.display = 'block';
+        }
+    }
 }
 
 async function generateImage(prompt) {
-    const response = await fetch(`${API_URL}/generate-image`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt })
-    });
-    
-    const data = await response.json();
-    
-    if (!data.success) {
-        throw new Error(data.error || 'Failed to generate image');
-    }
-    
-    return data.image_url;
-}
-
-async function uploadPdf(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const response = await fetch(`${API_URL}/upload-pdf`, {
-        method: 'POST',
-        body: formData
-    });
-    
-    const data = await response.json();
-    return data;
-}
-
-async function createPost(postData) {
-    const response = await fetch(`${API_URL}/create-post`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(postData)
-    });
-    
-    const data = await response.json();
-    return data;
-}
-
-async function loadStats() {
     try {
-        const response = await fetch(`${API_URL}/stats`);
+        const response = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ prompt })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.image_url) {
+            const imageDisplay = document.getElementById('generated-image');
+            if (imageDisplay) {
+                imageDisplay.src = data.image_url;
+                imageDisplay.style.display = 'block';
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error generating image:', error);
+    }
+}
+
+async function fetchPosts() {
+    try {
+        const response = await fetch('/api/posts');
         const data = await response.json();
         
         if (data.success) {
-            const stats = data.stats;
-            updateStatsDisplay(stats);
+            currentPosts = data.posts;
+            updatePostsList();
         }
     } catch (error) {
-        console.error('Failed to load stats:', error);
+        console.error('Error fetching posts:', error);
     }
 }
 
-async function loadPostHistory() {
+async function fetchFiles() {
     try {
-        const response = await fetch(`${API_URL}/posts?per_page=5`);
+        const response = await fetch('/api/files');
         const data = await response.json();
         
         if (data.success) {
-            displayPostHistory(data.posts);
+            currentFiles = data.files;
         }
     } catch (error) {
-        console.error('Failed to load post history:', error);
+        console.error('Error fetching files:', error);
     }
 }
 
-// UI Helper Functions
-function showContentPreview() {
-    const contentPreview = document.getElementById('content-preview');
-    if (contentPreview) {
-        contentPreview.style.display = 'block';
-        contentPreview.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-}
-
-function hideContentPreview() {
-    const contentPreview = document.getElementById('content-preview');
-    if (contentPreview) {
-        contentPreview.style.display = 'none';
-    }
-}
-
-function displayGeneratedImage(imageUrl) {
-    const imagePreview = document.getElementById('image-preview');
-    if (imagePreview) {
-        const img = imagePreview.querySelector('img');
-        if (img) {
-            img.src = imageUrl;
-            img.onload = () => {
-                imagePreview.style.display = 'block';
-            };
-            img.onerror = () => {
-                console.error('Failed to load generated image');
-                showToast('Generated image could not be displayed', 'warning');
-            };
-        }
-    }
-}
-
-function updatePostButton() {
-    const postBtn = document.getElementById('post-btn');
-    if (postBtn) {
-        if (currentSchedule) {
-            postBtn.innerHTML = '<i class="fas fa-calendar me-1"></i> Schedule Post';
-        } else {
-            postBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Post Now';
-        }
-    }
-}
-
-function updateScheduleDisplay() {
-    const postingTime = document.getElementById('posting-time');
-    const scheduleDisplay = document.getElementById('schedule-display');
+function updatePostsList() {
+    const postsContainer = document.getElementById('posts-list');
+    if (!postsContainer || !currentPosts.length) return;
     
-    if (postingTime && scheduleDisplay) {
-        if (currentSchedule) {
-            const scheduleDate = new Date(currentSchedule);
-            scheduleDisplay.textContent = scheduleDate.toLocaleString();
-            postingTime.style.display = 'block';
-        } else {
-            postingTime.style.display = 'none';
-        }
-    }
-}
-
-function updateStatsDisplay(stats) {
-    const totalPosts = document.getElementById('total-posts');
-    const scheduledPosts = document.getElementById('scheduled-posts');
-    const publishedPosts = document.getElementById('published-posts');
-    
-    if (totalPosts) totalPosts.textContent = stats.total_posts || 0;
-    if (scheduledPosts) scheduledPosts.textContent = stats.scheduled_posts || 0;
-    if (publishedPosts) publishedPosts.textContent = stats.published_posts || 0;
-}
-
-function displayPostHistory(posts) {
-    const postHistory = document.getElementById('post-history');
-    if (!postHistory) return;
-    
-    if (!posts || posts.length === 0) {
-        postHistory.innerHTML = `
-            <div class="text-center text-muted py-4">
-                <i class="fas fa-inbox fa-2x mb-2"></i>
-                <p>No posts yet</p>
-                <small>Create your first post to see it here</small>
+    postsContainer.innerHTML = currentPosts.map(post => `
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <span class="badge bg-${getStatusColor(post.status)}">${post.status}</span>
+                    <small class="text-muted">${new Date(post.created_at).toLocaleDateString()}</small>
+                </div>
+                <p class="card-text mt-2">${post.content.substring(0, 150)}...</p>
+                ${post.image_url ? `<img src="${post.image_url}" alt="Post image" class="img-fluid mt-2" style="max-height: 200px;">` : ''}
             </div>
-        `;
+        </div>
+    `).join('');
+}
+
+function getStatusColor(status) {
+    const colors = {
+        'draft': 'secondary',
+        'scheduled': 'warning',
+        'published': 'success',
+        'failed': 'danger'
+    };
+    return colors[status] || 'secondary';
+}
+
+function togglePostsList() {
+    const postsSection = document.getElementById('posts-section');
+    if (postsSection) {
+        postsSection.style.display = postsSection.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function triggerFileUpload() {
+    document.getElementById('pdf-upload').click();
+}
+
+async function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (file.type !== 'application/pdf') {
+        showToast('error', 'Please select a PDF file');
         return;
     }
     
-    const historyHTML = posts.map(post => {
-        const createdAt = new Date(post.created_at).toLocaleDateString();
-        const content = post.content.length > 100 ? 
-            post.content.substring(0, 100) + '...' : 
-            post.content;
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const response = await fetch('/api/upload-pdf', {
+            method: 'POST',
+            body: formData
+        });
         
-        return `
-            <div class="post-item">
-                <div class="post-meta">
-                    <span class="post-status status-${post.status}">${post.status}</span>
-                    <span class="ms-2">${createdAt}</span>
-                </div>
-                <div class="post-content-preview">${content}</div>
-                ${post.post_type === 'image' ? '<small class="text-muted"><i class="fas fa-image me-1"></i>Contains image</small>' : ''}
-            </div>
-        `;
-    }).join('');
-    
-    postHistory.innerHTML = historyHTML;
-}
-
-function resetForm() {
-    const contentPrompt = document.getElementById('content-prompt');
-    const imagePrompt = document.getElementById('image-prompt');
-    const scheduleInput = document.getElementById('schedule-input');
-    const enableImageGen = document.getElementById('enable-image-gen');
-    const imagePromptGroup = document.getElementById('image-prompt-group');
-    const imagePreview = document.getElementById('image-preview');
-    
-    if (contentPrompt) contentPrompt.value = '';
-    if (imagePrompt) imagePrompt.value = '';
-    if (scheduleInput) scheduleInput.value = '';
-    if (enableImageGen) enableImageGen.checked = false;
-    if (imagePromptGroup) imagePromptGroup.style.display = 'none';
-    if (imagePreview) imagePreview.style.display = 'none';
-    
-    currentContent = null;
-    currentImageUrl = null;
-    currentSchedule = null;
-}
-
-// Button state management
-function setButtonLoading(button, text) {
-    if (button) {
-        button.disabled = true;
-        button.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> ${text}`;
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', 'PDF uploaded and processed successfully!');
+            fetchFiles();
+        } else {
+            showToast('error', data.error || 'Failed to upload PDF');
+        }
+        
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        showToast('error', 'Error uploading file');
     }
 }
 
-function resetButtonLoading(button, originalText) {
-    if (button) {
-        button.disabled = false;
-        button.innerHTML = originalText;
-    }
-}
-
-// Toast notification system
-function showToast(message, type = 'info') {
-    const toast = document.querySelector('.toast');
+function showToast(type, message) {
+    const toast = document.getElementById('notification-toast');
     const toastMessage = document.querySelector('.toast-message');
-    const toastIcon = document.querySelector('.toast-icon');
     
-    if (!toast || !toastMessage || !toastIcon) return;
-    
-    // Set message
-    toastMessage.textContent = message;
-    
-    // Update icon and styling based on type
-    toast.className = 'toast show';
-    toast.classList.add(type);
-    
-    switch (type) {
-        case 'success':
-            toastIcon.className = 'toast-icon fas fa-check-circle text-success me-2';
-            break;
-        case 'error':
-            toastIcon.className = 'toast-icon fas fa-exclamation-circle text-danger me-2';
-            break;
-        case 'warning':
-            toastIcon.className = 'toast-icon fas fa-exclamation-triangle text-warning me-2';
-            break;
-        default:
-            toastIcon.className = 'toast-icon fas fa-info-circle text-primary me-2';
-    }
-    
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-        hideToast();
-    }, 5000);
-}
-
-function hideToast() {
-    const toast = document.querySelector('.toast');
-    if (toast) {
-        toast.classList.remove('show', 'success', 'error', 'warning', 'info');
+    if (toast && toastMessage) {
+        toastMessage.textContent = message;
+        toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'success'} border-0`;
+        
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+    } else {
+        console.log(`${type.toUpperCase()}: ${message}`);
     }
 }
 
-// Utility functions
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+// Make functions available globally
+window.generateContent = generateContent;
+window.publishPost = publishPost;
+
+async function publishPost() {
+    const content = document.getElementById('generated-content').textContent;
+    const scheduleTime = document.getElementById('schedule-time').value;
+    const imageElement = document.getElementById('generated-image');
+    const imageUrl = imageElement && imageElement.style.display !== 'none' ? imageElement.src : null;
+    
+    if (!content) {
+        showToast('error', 'No content to publish');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/create-post', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                content,
+                schedule_time: scheduleTime || null,
+                image_url: imageUrl,
+                post_type: imageUrl ? 'image' : 'text'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', scheduleTime ? 'Post scheduled successfully!' : 'Post published successfully!');
+            
+            // Clear the form
+            document.getElementById('content-prompt').value = '';
+            document.getElementById('content-preview').style.display = 'none';
+            document.getElementById('publish-options').style.display = 'none';
+            
+            // Refresh data
+            fetchStats();
+            fetchPosts();
+        } else {
+            showToast('error', data.error || 'Failed to publish post');
+        }
+        
+    } catch (error) {
+        console.error('Error publishing post:', error);
+        showToast('error', 'Error publishing post');
+    }
 }
