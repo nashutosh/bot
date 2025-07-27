@@ -5,7 +5,7 @@ import base64
 
 # Initialize Stability AI client
 STABILITY_API_KEY = os.environ.get("STABILITY_API_KEY")
-STABILITY_API_URL = "https://api.stability.ai/v1/generation/stable-diffusion-v1-6/text-to-image"
+STABILITY_API_URL = "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image"
 
 def generate_image_with_stability(prompt: str) -> str:
     """Generate an image using Stability AI"""
