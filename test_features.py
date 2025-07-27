@@ -39,7 +39,7 @@ class FeatureTester:
                 self.setup_test_environment()
                 
                 # Run tests
-                self.test_user_authentication()
+                self.test_user_management()
                 self.test_content_generation()
                 self.test_image_generation()
                 self.test_post_management()

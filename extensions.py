@@ -10,7 +10,9 @@ class Base(DeclarativeBase):
 # Initialize extensions
 db = SQLAlchemy(model_class=Base)
 cors = CORS()
+# Rate limiter using memory storage (no Redis required)
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["1000 per day", "200 per hour"],
+    storage_uri="memory://"
 )

@@ -84,25 +84,8 @@ if (-not (Test-Path ".env")) {
     }
 }
 
-# Check if Redis is running (optional)
-try {
-    $redisTest = redis-cli ping 2>$null
-    if ($redisTest -eq "PONG") {
-        Write-Success "Redis server is running"
-    } else {
-        Write-Warning "Redis server is not running. Some features may not work properly."
-        Write-Status "To start Redis on Windows:"
-        Write-Status "  - Download Redis from: https://github.com/microsoftarchive/redis/releases"
-        Write-Status "  - Or use Docker: docker run -d -p 6379:6379 redis:alpine"
-        Write-Status "  - Or use WSL2 with Redis installed"
-    }
-} catch {
-    Write-Warning "Redis not installed. Install Redis for full functionality."
-    Write-Status "Install options:"
-    Write-Status "  - Docker: docker run -d -p 6379:6379 redis:alpine"
-    Write-Status "  - WSL2: sudo apt install redis-server"
-    Write-Status "  - Windows: Download from GitHub releases"
-}
+# Redis not required - using memory storage for rate limiting
+Write-Status "Using memory storage for rate limiting (Redis not required)"
 
 # Create upload directories
 Write-Status "Creating necessary directories..."

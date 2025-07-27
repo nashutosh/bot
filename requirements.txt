@@ -11,8 +11,7 @@ SQLAlchemy>=2.0.41
 psycopg2-binary>=2.9.10
 alembic>=1.13.0
 
-# Redis for rate limiting
-redis>=5.0.0
+# Redis removed - not needed for single user operation
 
 # HTTP requests and utilities
 requests>=2.32.4
@@ -72,3 +71,7 @@ numpy>=1.24.0
 
 # Environment and configuration
 python-multipart>=0.0.6
+
+# Additional dependencies for full functionality
+asyncio-mqtt>=0.13.0
+aiofiles>=23.2.0
