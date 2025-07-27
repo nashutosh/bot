@@ -5,297 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LinkedIn Marketing Automation - Professional Dashboard</title>
     
+    <!-- Bootstrap CSS with Replit dark theme -->
     <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --linkedin-blue: #0a66c2;
-            --linkedin-light: #378fe9;
-            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --gradient-success: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
-            --gradient-danger: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            --card-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            --hover-shadow: 0 8px 30px rgba(0,0,0,0.25);
-        }
-
-        body {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            min-height: 100vh;
-        }
-
-        .navbar {
-            background: rgba(0,0,0,0.9) !important;
-            backdrop-filter: blur(10px);
-            border-bottom: 2px solid var(--linkedin-blue);
-            box-shadow: 0 2px 20px rgba(0,0,0,0.3);
-        }
-
-        .navbar-brand {
-            color: var(--linkedin-blue) !important;
-            font-weight: 700;
-            font-size: 1.5rem;
-        }
-
-        .nav-pills .nav-link {
-            color: rgba(255,255,255,0.8);
-            border-radius: 25px;
-            margin: 0 5px;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-
-        .nav-pills .nav-link.active {
-            background: var(--linkedin-blue);
-            color: white;
-            box-shadow: 0 4px 15px rgba(10, 102, 194, 0.4);
-        }
-
-        .nav-pills .nav-link:hover {
-            color: white;
-            background: rgba(10, 102, 194, 0.7);
-        }
-
-        .page-content {
-            display: none;
-            animation: fadeIn 0.5s ease-in-out;
-        }
-
-        .page-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: var(--card-shadow);
-            backdrop-filter: blur(10px);
-            background: rgba(255,255,255,0.05);
-            transition: all 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--hover-shadow);
-        }
-
-        .stat-card {
-            background: var(--gradient-primary);
-            color: white;
-            border-radius: 20px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100px;
-            height: 100px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 50%;
-            transform: translate(30px, -30px);
-        }
-
-        .btn-linkedin {
-            background: var(--linkedin-blue);
-            border: none;
-            color: white;
-            border-radius: 25px;
-            padding: 10px 25px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .btn-linkedin:hover {
-            background: var(--linkedin-light);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(10, 102, 194, 0.4);
-            color: white;
-        }
-
-        .btn-automation {
-            background: var(--gradient-danger);
-            border: none;
-            color: white;
-            border-radius: 25px;
-            transition: all 0.3s ease;
-        }
-
-        .btn-automation:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(240, 147, 251, 0.4);
-            color: white;
-        }
-
-        .content-display {
-            line-height: 1.7;
-            white-space: pre-wrap;
-            padding: 20px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 15px;
-            border-left: 4px solid var(--linkedin-blue);
-        }
-
-        .section-title {
-            color: var(--linkedin-blue);
-            font-weight: 600;
-            margin-bottom: 2rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .section-title::before {
-            content: '';
-            width: 4px;
-            height: 30px;
-            background: var(--linkedin-blue);
-            border-radius: 2px;
-        }
-
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1050;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-content {
-            background: var(--bs-body-bg);
-            border-radius: 20px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-
-        .modal-header {
-            border-bottom: 1px solid var(--bs-border-color);
-            padding: 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: linear-gradient(135deg, var(--linkedin-blue), var(--linkedin-light));
-            color: white;
-            border-radius: 20px 20px 0 0;
-        }
-
-        .modal-body {
-            padding: 1.5rem;
-        }
-
-        .modal-footer {
-            border-top: 1px solid var(--bs-border-color);
-            padding: 1rem;
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.5rem;
-        }
-
-        .close-modal {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-
-        .upload-area {
-            border: 2px dashed var(--bs-border-color);
-            border-radius: 15px;
-            padding: 3rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .upload-area:hover {
-            border-color: var(--linkedin-blue);
-            background-color: rgba(10, 102, 194, 0.1);
-        }
-
-        .uploaded-file {
-            border: 1px solid var(--bs-border-color);
-            border-radius: 15px;
-            padding: 1.5rem;
-            background: rgba(255,255,255,0.05);
-        }
-
-        .file-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .toast-container {
-            z-index: 9999;
-        }
-    </style>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <!-- Professional Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="#">
                 <i class="fab fa-linkedin me-2"></i>
-                LinkedIn Marketing Automation
+                LinkedIn AI Agent
             </a>
-            
-            <!-- Multi-Page Navigation -->
-            <div class="navbar-nav ms-auto">
-                <ul class="nav nav-pills">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="#" data-page="dashboard">
-                            <i class="fas fa-chart-line me-1"></i>Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-page="content">
-                            <i class="fas fa-edit me-1"></i>Content Creator
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-page="automation">
-                            <i class="fas fa-robot me-1"></i>Automation
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-page="campaigns">
-                            <i class="fas fa-bullhorn me-1"></i>Campaigns
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-page="analytics">
-                            <i class="fas fa-analytics me-1"></i>Analytics
-                        </a>
-                    </li>
-                </ul>
-            </div>
         </div>
     </nav>
 
     <!-- Main Content -->
     <div class="container mt-4">
-        
-        <!-- Dashboard Page -->
-        <div id="dashboard-page" class="page-content active">
-            <!-- Statistics Cards -->
-            <div class="row mb-4">
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
             <div class="col-md-2">
                 <div class="card">
                     <div class="card-body text-center">
@@ -394,14 +127,8 @@
                 </div>
             </div>
         </div>
-        </div>
 
-        <!-- Content Creator Page -->
-        <div id="content-page" class="page-content">
-            <h2 class="section-title">
-                <i class="fas fa-edit"></i>
-                AI Content Creator
-            </h2>
+        <!-- Content Generation Form -->
         <div class="row">
             <div class="col-lg-8">
                 <div class="card">

@@ -24,6 +24,14 @@ function initializeApp() {
 }
 
 function bindEventListeners() {
+    // Navigation listeners
+    document.querySelectorAll('[data-page]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchPage(e.target.closest('[data-page]').dataset.page);
+        });
+    });
+
     // Existing listeners
     document.getElementById('generate-btn')?.addEventListener('click', generateContent);
     document.getElementById('upload-pdf-btn')?.addEventListener('click', showPDFUploadModal);
@@ -696,4 +704,102 @@ async function publishPost() {
         console.error('Error publishing post:', error);
         showToast('error', 'Error publishing post');
     }
+}
+
+// Multi-page Navigation
+function switchPage(pageName) {
+    // Hide all pages
+    document.querySelectorAll(".page-content").forEach(page => {
+        page.classList.remove("active");
+    });
+    
+    // Show selected page
+    const targetPage = document.getElementById(`${pageName}-page`);
+    if (targetPage) {
+        targetPage.classList.add("active");
+    }
+    
+    // Update navigation
+    document.querySelectorAll("[data-page]").forEach(link => {
+        link.classList.remove("active");
+    });
+    
+    document.querySelector(`[data-page="${pageName}"]`)?.classList.add("active");
+    
+    // Load page-specific data
+    switch(pageName) {
+        case "dashboard":
+            loadDashboardData();
+            break;
+        case "campaigns":
+            loadCampaigns();
+            break;
+        case "analytics":
+            loadAnalytics();
+            break;
+    }
+}
+
+function loadDashboardData() {
+    fetchStats();
+    fetchFiles();
+    fetchPosts();
+}
+
+function loadCampaigns() {
+    fetch("/api/marketing/campaigns")
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.campaigns.length > 0) {
+                displayCampaigns(data.campaigns);
+            }
+        })
+        .catch(error => console.error("Error loading campaigns:", error));
+}
+
+function displayCampaigns(campaigns) {
+    const campaignsList = document.getElementById("campaigns-list");
+    if (!campaignsList) return;
+    
+    campaignsList.innerHTML = campaigns.map(campaign => `
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">${campaign.campaign_name}</h6>
+                        <p class="card-text text-muted">
+                            <small>Created: ${new Date(campaign.created_at).toLocaleDateString()}</small>
+                            <br>
+                            <small>Posts: ${campaign.posts_generated} | Target: ${campaign.engagement_target}</small>
+                        </p>
+                    </div>
+                    <div>
+                        <span class="badge ${campaign.is_active ? "bg-success" : "bg-secondary"}">
+                            ${campaign.is_active ? "Active" : "Inactive"}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join("");
+}
+
+function loadAnalytics() {
+    fetchStats().then(() => {
+        // Update analytics page with same data
+        const stats = document.getElementById("total-posts-analytics");
+        if (stats) {
+            stats.textContent = document.getElementById("total-posts")?.textContent || "0";
+        }
+        
+        const connections = document.getElementById("total-connections-analytics");
+        if (connections) {
+            connections.textContent = document.getElementById("total-connections")?.textContent || "0";
+        }
+        
+        const campaigns = document.getElementById("active-campaigns-analytics");
+        if (campaigns) {
+            campaigns.textContent = document.getElementById("active-campaigns")?.textContent || "0";
+        }
+    });
 }
