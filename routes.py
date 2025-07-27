@@ -186,6 +186,7 @@ def create_post():
                 post.status = 'published'
                 post.published_at = datetime.utcnow()
                 post.linkedin_post_id = result.get('post_id')
+                post.linkedin_url = result.get('linkedin_url')
             else:
                 post.status = 'failed'
                 post.error_message = result.get('error', 'Unknown error')
@@ -193,12 +194,21 @@ def create_post():
         db.session.add(post)
         db.session.commit()
         
-        return jsonify({
+        response_data = {
             'success': True,
             'post_id': post.id,
             'status': post.status,
             'message': 'Post created successfully'
-        })
+        }
+        
+        # Add LinkedIn URL if published successfully
+        if post.status == 'published' and post.linkedin_url:
+            response_data['linkedin_url'] = post.linkedin_url
+            response_data['message'] = 'Post published successfully to LinkedIn!'
+        elif post.status == 'failed':
+            response_data['error_message'] = post.error_message
+            
+        return jsonify(response_data)
         
     except Exception as e:
         logging.error(f"Error in create_post: {str(e)}")

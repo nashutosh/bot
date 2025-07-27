@@ -716,6 +716,80 @@ function showToast(type, message) {
     }
 }
 
+function showLinkedInSuccessPopup(postContent) {
+    // Create success popup modal
+    const modalHtml = `
+        <div class="modal fade" id="linkedinSuccessModal" tabindex="-1" aria-labelledby="linkedinSuccessModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content bg-dark text-light">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title" id="linkedinSuccessModalLabel">
+                            <i class="fab fa-linkedin text-primary me-2"></i>
+                            LinkedIn Post Published!
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Your post has been successfully published to LinkedIn!
+                        </div>
+                        
+                        <div class="card bg-body-secondary">
+                            <div class="card-header">
+                                <small class="text-muted">Published Content:</small>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-0" style="max-height: 150px; overflow-y: auto;">
+                                    ${postContent.substring(0, 300)}${postContent.length > 300 ? '...' : ''}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                Published: ${new Date().toLocaleString()}
+                            </small>
+                            <div>
+                                <a href="https://www.linkedin.com/feed/" target="_blank" class="btn btn-primary btn-sm">
+                                    <i class="fab fa-linkedin me-1"></i>
+                                    View on LinkedIn
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-linkedin" onclick="generateContent()">
+                            <i class="fas fa-plus me-1"></i>
+                            Create Another Post
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('linkedinSuccessModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('linkedinSuccessModal'));
+    modal.show();
+    
+    // Auto-remove modal after it's hidden
+    document.getElementById('linkedinSuccessModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
 // Make functions available globally
 window.generateContent = generateContent;
 window.publishPost = publishPost;
@@ -767,11 +841,13 @@ async function publishPost() {
         
         if (data.success) {
             if (data.status === 'published') {
+                // Show success popup only when actually published to LinkedIn
+                showLinkedInSuccessPopup(content.trim());
                 showToast('success', 'Post published successfully to LinkedIn!');
             } else if (data.status === 'failed') {
                 showToast('error', data.error_message || 'Failed to publish to LinkedIn');
             } else {
-                showToast('success', 'Post created successfully!');
+                showToast('success', 'Post saved successfully!');
             }
             
             // Clear the form
