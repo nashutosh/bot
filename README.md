@@ -88,6 +88,13 @@ DATABASE_URL=sqlite:///linkedin_agent.db
 
 # LinkedIn API
 LINKEDIN_CLIENT_ID=your-linkedin-client-id
+
+# AI Services
+GEMINI_API_KEY=your-gemini-api-key
+STABILITY_API_KEY=your-stability-ai-api-key
+
+# Redis (for automation)
+REDIS_URL=redis://localhost:6379/0
 LINKEDIN_CLIENT_SECRET=your-linkedin-client-secret
 
 # AI Services

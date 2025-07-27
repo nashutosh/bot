@@ -36,9 +36,9 @@
         }
         
         .glass-effect {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .sidebar-transition {
@@ -46,7 +46,7 @@
         }
         
         .fade-in {
-            animation: fadeIn 0.5s ease-in-out;
+            animation: fadeIn 0.6s ease-in-out;
         }
         
         @keyframes fadeIn {
@@ -60,17 +60,28 @@
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.7; }
         }
         
         .btn-primary {
             background: linear-gradient(135deg, #0a66c2 0%, #004182 100%);
             transition: all 0.3s ease;
+            box-shadow: 0 4px 14px 0 rgba(10, 102, 194, 0.3);
         }
         
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(10, 102, 194, 0.3);
+            box-shadow: 0 6px 20px rgba(10, 102, 194, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
         }
         
         .content-area {
@@ -79,16 +90,112 @@
         
         .notification {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 24px;
+            right: 24px;
             z-index: 1000;
-            max-width: 400px;
+            max-width: 420px;
             transform: translateX(100%);
             transition: transform 0.3s ease-in-out;
         }
         
         .notification.show {
             transform: translateX(0);
+        }
+        
+        .upload-zone {
+            border: 2px dashed #d1d5db;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: #0a66c2;
+            background-color: rgba(10, 102, 194, 0.05);
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #0a66c2, #378fe9);
+            transition: width 0.3s ease;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .nav-link.active {
+            background: linear-gradient(135deg, #0a66c2 0%, #378fe9 100%);
+            box-shadow: 0 4px 12px rgba(10, 102, 194, 0.3);
+        }
+        
+        .image-preview {
+            max-height: 400px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .campaign-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-left: 4px solid #0a66c2;
+        }
+        
+        .automation-toggle {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            background: #d1d5db;
+            border-radius: 12px;
+            transition: background 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .automation-toggle.active {
+            background: #0a66c2;
+        }
+        
+        .automation-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .automation-toggle.active::after {
+            transform: translateX(24px);
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-published {
+            background: #10b981;
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+        }
+        
+        .status-scheduled {
+            background: #f59e0b;
+            box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+        }
+        
+        .status-draft {
+            background: #6b7280;
+            box-shadow: 0 0 6px rgba(107, 114, 128, 0.5);
+        }
+        
+        .status-failed {
+            background: #ef4444;
+            box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
         }
     </style>
     
@@ -99,85 +206,96 @@
                     colors: {
                         'linkedin': '#0a66c2',
                         'linkedin-dark': '#004182',
+                        'linkedin-light': '#378fe9',
+                    },
+                    spacing: {
+                        '18': '4.5rem',
+                        '88': '22rem',
                     }
                 }
             }
         }
     </script>
 </head>
-<body class="h-full bg-gray-50">
+<body class="h-full bg-gradient-to-br from-slate-50 to-blue-50">
     <!-- Notification Container -->
     <div id="notification" class="notification"></div>
     
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg p-6 flex items-center space-x-4">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-linkedin"></div>
-            <span class="text-gray-700 font-medium">Processing...</span>
+        <div class="bg-white rounded-xl p-8 flex items-center space-x-4 card-shadow-lg">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-linkedin"></div>
+            <div>
+                <div class="text-gray-800 font-semibold">Processing...</div>
+                <div id="loadingMessage" class="text-gray-600 text-sm">Please wait</div>
+            </div>
         </div>
     </div>
     
     <!-- Authentication Modal -->
-    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 card-shadow-lg">
-            <div class="text-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800 mb-2">Welcome to LinkedIn Marketing Agent</h2>
-                <p class="text-gray-600">Sign in to access your dashboard</p>
+    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-10 max-w-md w-full mx-6 card-shadow-lg">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-linkedin rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fab fa-linkedin-in text-white text-2xl"></i>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+                <p class="text-gray-600">Access your LinkedIn Marketing Command Center</p>
             </div>
             
             <!-- Login Form -->
             <div id="loginForm">
-                <form id="loginFormElement" class="space-y-4">
+                <form id="loginFormElement" class="space-y-6">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Email or Username</label>
-                        <input type="text" id="loginUsername" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin focus:border-transparent" placeholder="Enter your email or username" required>
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">Email or Username</label>
+                        <input type="text" id="loginUsername" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-linkedin focus:border-transparent transition-all" placeholder="Enter your email or username" required>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                        <input type="password" id="loginPassword" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin focus:border-transparent" placeholder="Enter your password" required>
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">Password</label>
+                        <input type="password" id="loginPassword" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-linkedin focus:border-transparent transition-all" placeholder="Enter your password" required>
                     </div>
-                    <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg font-medium">
-                        Sign In
+                    <button type="submit" class="w-full btn-primary text-white py-4 rounded-xl font-semibold text-lg">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Sign In
                     </button>
                 </form>
-                <div class="mt-4 text-center">
+                <div class="mt-6 text-center">
                     <span class="text-gray-600">Don't have an account? </span>
-                    <button onclick="showRegisterForm()" class="text-linkedin font-medium hover:underline">Sign up</button>
+                    <button onclick="showRegisterForm()" class="text-linkedin font-semibold hover:underline">Create Account</button>
                 </div>
             </div>
             
             <!-- Register Form -->
             <div id="registerForm" class="hidden">
-                <form id="registerFormElement" class="space-y-4">
+                <form id="registerFormElement" class="space-y-6">
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-                            <input type="text" id="registerFirstName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin focus:border-transparent" placeholder="First name">
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">First Name</label>
+                            <input type="text" id="registerFirstName" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-linkedin focus:border-transparent transition-all" placeholder="First name">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                            <input type="text" id="registerLastName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin focus:border-transparent" placeholder="Last name">
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">Last Name</label>
+                            <input type="text" id="registerLastName" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-linkedin focus:border-transparent transition-all" placeholder="Last name">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                        <input type="text" id="registerUsername" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin focus:border-transparent" placeholder="Choose a username" required>
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">Username</label>
+                        <input type="text" id="registerUsername" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-linkedin focus:border-transparent transition-all" placeholder="Choose a username" required>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                        <input type="email" id="registerEmail" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin focus:border-transparent" placeholder="Enter your email" required>
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">Email</label>
+                        <input type="email" id="registerEmail" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-linkedin focus:border-transparent transition-all" placeholder="Enter your email" required>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                        <input type="password" id="registerPassword" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin focus:border-transparent" placeholder="Create a password" required>
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">Password</label>
+                        <input type="password" id="registerPassword" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-linkedin focus:border-transparent transition-all" placeholder="Create a strong password" required>
                     </div>
-                    <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg font-medium">
-                        Create Account
+                    <button type="submit" class="w-full btn-primary text-white py-4 rounded-xl font-semibold text-lg">
+                        <i class="fas fa-user-plus mr-2"></i>Create Account
                     </button>
                 </form>
-                <div class="mt-4 text-center">
+                <div class="mt-6 text-center">
                     <span class="text-gray-600">Already have an account? </span>
-                    <button onclick="showLoginForm()" class="text-linkedin font-medium hover:underline">Sign in</button>
+                    <button onclick="showLoginForm()" class="text-linkedin font-semibold hover:underline">Sign In</button>
                 </div>
             </div>
         </div>
@@ -186,52 +304,67 @@
     <!-- Main App Container -->
     <div id="appContainer" class="hidden">
         <!-- Header -->
-        <header class="bg-white shadow-sm border-b border-gray-200">
-            <div class="px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center h-16">
+        <header class="bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-200 sticky top-0 z-40">
+            <div class="px-6 lg:px-8">
+                <div class="flex justify-between items-center h-18">
                     <!-- Logo and Title -->
                     <div class="flex items-center">
-                        <button id="sidebarToggle" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                        <button id="sidebarToggle" class="lg:hidden p-3 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all">
                             <i class="fas fa-bars text-xl"></i>
                         </button>
                         <div class="flex items-center ml-4 lg:ml-0">
-                            <div class="w-8 h-8 linkedin-blue rounded-lg flex items-center justify-center mr-3">
-                                <i class="fab fa-linkedin-in text-white text-lg"></i>
+                            <div class="w-12 h-12 linkedin-blue rounded-xl flex items-center justify-center mr-4 shadow-lg">
+                                <i class="fab fa-linkedin-in text-white text-xl"></i>
                             </div>
-                            <h1 class="text-xl font-bold text-gray-900">LinkedIn Marketing Agent</h1>
+                            <div>
+                                <h1 class="text-2xl font-bold text-gray-900">LinkedIn Marketing Agent</h1>
+                                <p class="text-sm text-gray-600">Professional Marketing Automation</p>
+                            </div>
                         </div>
                     </div>
                     
                     <!-- Header Actions -->
                     <div class="flex items-center space-x-4">
+                        <!-- Quick Actions -->
+                        <button onclick="showSection('content-generator')" class="hidden sm:flex items-center px-4 py-2 bg-linkedin text-white rounded-xl hover:bg-linkedin-dark transition-all">
+                            <i class="fas fa-plus mr-2"></i>
+                            <span>Create Post</span>
+                        </button>
+                        
                         <!-- Notifications -->
-                        <button class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg relative">
+                        <button class="p-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl relative transition-all">
                             <i class="fas fa-bell text-lg"></i>
-                            <span class="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
+                            <span id="notificationBadge" class="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center hidden">3</span>
                         </button>
                         
                         <!-- User Menu -->
                         <div class="relative">
-                            <button id="userMenuButton" class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100">
-                                <div class="w-8 h-8 bg-linkedin rounded-full flex items-center justify-center">
+                            <button id="userMenuButton" class="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 transition-all">
+                                <div class="w-10 h-10 bg-gradient-to-r from-linkedin to-linkedin-light rounded-full flex items-center justify-center">
                                     <i class="fas fa-user text-white text-sm"></i>
                                 </div>
-                                <span id="userDisplayName" class="text-sm font-medium text-gray-700">User</span>
+                                <div class="hidden sm:block text-left">
+                                    <div id="userDisplayName" class="text-sm font-semibold text-gray-800">User</div>
+                                    <div class="text-xs text-gray-600">Marketing Professional</div>
+                                </div>
                                 <i class="fas fa-chevron-down text-xs text-gray-500"></i>
                             </button>
                             
                             <!-- User Dropdown -->
-                            <div id="userDropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 hidden">
+                            <div id="userDropdown" class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 hidden">
                                 <div class="py-2">
-                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                        <i class="fas fa-user-circle mr-2"></i>Profile
+                                    <a href="#" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-all">
+                                        <i class="fas fa-user-circle mr-3 text-linkedin"></i>Profile Settings
                                     </a>
-                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                        <i class="fas fa-cog mr-2"></i>Settings
+                                    <a href="#" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-all">
+                                        <i class="fas fa-cog mr-3 text-linkedin"></i>Preferences
+                                    </a>
+                                    <a href="#" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-all">
+                                        <i class="fas fa-chart-line mr-3 text-linkedin"></i>Analytics
                                     </a>
                                     <hr class="my-2">
-                                    <button onclick="logout()" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-                                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                    <button onclick="logout()" class="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-all">
+                                        <i class="fas fa-sign-out-alt mr-3"></i>Logout
                                     </button>
                                 </div>
                             </div>
@@ -243,240 +376,342 @@
         
         <div class="flex">
             <!-- Sidebar -->
-            <nav id="sidebar" class="bg-white w-64 min-h-screen shadow-sm border-r border-gray-200 sidebar-transition lg:translate-x-0 -translate-x-full fixed lg:relative z-40">
+            <nav id="sidebar" class="bg-white/95 backdrop-blur-sm w-72 min-h-screen shadow-lg border-r border-gray-200 sidebar-transition lg:translate-x-0 -translate-x-full fixed lg:relative z-30">
                 <div class="p-6">
                     <!-- Navigation Menu -->
                     <ul class="space-y-2">
                         <li>
-                            <a href="#" onclick="showSection('dashboard')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-                                <i class="fas fa-chart-line mr-3 text-linkedin"></i>
-                                Dashboard
+                            <a href="#" onclick="showSection('dashboard')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-xl hover:bg-gray-50 transition-all group">
+                                <i class="fas fa-chart-line mr-4 text-linkedin group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Dashboard</span>
                             </a>
                         </li>
                         <li>
-                            <a href="#" onclick="showSection('content-generator')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-                                <i class="fas fa-magic mr-3 text-linkedin"></i>
-                                Content Generator
+                            <a href="#" onclick="showSection('content-generator')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-xl hover:bg-gray-50 transition-all group">
+                                <i class="fas fa-magic mr-4 text-linkedin group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">AI Content Studio</span>
                             </a>
                         </li>
                         <li>
-                            <a href="#" onclick="showSection('post-scheduler')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-                                <i class="fas fa-calendar-alt mr-3 text-linkedin"></i>
-                                Post Scheduler
+                            <a href="#" onclick="showSection('post-scheduler')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-xl hover:bg-gray-50 transition-all group">
+                                <i class="fas fa-calendar-alt mr-4 text-linkedin group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Smart Scheduler</span>
                             </a>
                         </li>
                         <li>
-                            <a href="#" onclick="showSection('automation')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-                                <i class="fas fa-robot mr-3 text-linkedin"></i>
-                                Automation
+                            <a href="#" onclick="showSection('automation')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-xl hover:bg-gray-50 transition-all group">
+                                <i class="fas fa-robot mr-4 text-linkedin group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Auto Engagement</span>
                             </a>
                         </li>
                         <li>
-                            <a href="#" onclick="showSection('campaigns')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-                                <i class="fas fa-bullhorn mr-3 text-linkedin"></i>
-                                Campaigns
+                            <a href="#" onclick="showSection('campaigns')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-xl hover:bg-gray-50 transition-all group">
+                                <i class="fas fa-bullhorn mr-4 text-linkedin group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Campaign Manager</span>
                             </a>
                         </li>
                         <li>
-                            <a href="#" onclick="showSection('analytics')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-                                <i class="fas fa-chart-bar mr-3 text-linkedin"></i>
-                                Analytics
+                            <a href="#" onclick="showSection('analytics')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-xl hover:bg-gray-50 transition-all group">
+                                <i class="fas fa-chart-bar mr-4 text-linkedin group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Advanced Analytics</span>
                             </a>
                         </li>
                         <li>
-                            <a href="#" onclick="showSection('file-manager')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-                                <i class="fas fa-folder mr-3 text-linkedin"></i>
-                                File Manager
+                            <a href="#" onclick="showSection('file-manager')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-xl hover:bg-gray-50 transition-all group">
+                                <i class="fas fa-folder mr-4 text-linkedin group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Media Library</span>
                             </a>
                         </li>
                         <li>
-                            <a href="#" onclick="showSection('linkedin-integration')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-                                <i class="fab fa-linkedin mr-3 text-linkedin"></i>
-                                LinkedIn Integration
+                            <a href="#" onclick="showSection('linkedin-integration')" class="nav-link flex items-center px-4 py-3 text-gray-700 rounded-xl hover:bg-gray-50 transition-all group">
+                                <i class="fab fa-linkedin mr-4 text-linkedin group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">LinkedIn Connect</span>
                             </a>
                         </li>
                     </ul>
+                    
+                    <!-- Quick Stats -->
+                    <div class="mt-8 p-4 bg-gradient-to-r from-linkedin/10 to-linkedin-light/10 rounded-xl">
+                        <h3 class="text-sm font-semibold text-gray-800 mb-3">Today's Activity</h3>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Posts Published</span>
+                                <span class="font-semibold text-linkedin" id="todayPosts">0</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Engagement Rate</span>
+                                <span class="font-semibold text-green-600" id="todayEngagement">0%</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">New Connections</span>
+                                <span class="font-semibold text-purple-600" id="todayConnections">0</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </nav>
             
             <!-- Main Content -->
-            <main class="flex-1 content-area">
+            <main class="flex-1 content-area overflow-hidden">
                 <!-- Dashboard Section -->
-                <section id="dashboard-section" class="section-content p-6">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-2">Dashboard</h2>
-                        <p class="text-gray-600">Welcome to your LinkedIn Marketing Command Center</p>
+                <section id="dashboard-section" class="section-content p-8 fade-in">
+                    <div class="mb-10">
+                        <h2 class="text-4xl font-bold text-gray-900 mb-3">Marketing Command Center</h2>
+                        <p class="text-gray-600 text-lg">Monitor your LinkedIn presence and automate your growth</p>
                     </div>
                     
-                    <!-- Stats Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <div class="bg-white rounded-xl p-6 card-shadow">
-                            <div class="flex items-center justify-between">
+                    <!-- Enhanced Stats Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+                        <div class="bg-white rounded-2xl p-8 card-shadow hover:shadow-lg transition-all">
+                            <div class="flex items-center justify-between mb-4">
                                 <div>
-                                    <p class="text-sm font-medium text-gray-600">Total Posts</p>
-                                    <p class="text-3xl font-bold text-gray-900" id="totalPosts">0</p>
+                                    <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Posts</p>
+                                    <p class="text-4xl font-bold text-gray-900 mt-2" id="totalPosts">0</p>
                                 </div>
-                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-file-alt text-blue-600 text-xl"></i>
+                                <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center">
+                                    <i class="fas fa-file-alt text-blue-600 text-2xl"></i>
                                 </div>
                             </div>
-                            <div class="mt-4 flex items-center">
-                                <span class="text-green-500 text-sm font-medium">+12%</span>
+                            <div class="flex items-center">
+                                <span class="text-green-500 text-sm font-semibold">+12.5%</span>
                                 <span class="text-gray-500 text-sm ml-2">from last month</span>
                             </div>
                         </div>
                         
-                        <div class="bg-white rounded-xl p-6 card-shadow">
-                            <div class="flex items-center justify-between">
+                        <div class="bg-white rounded-2xl p-8 card-shadow hover:shadow-lg transition-all">
+                            <div class="flex items-center justify-between mb-4">
                                 <div>
-                                    <p class="text-sm font-medium text-gray-600">Engagement Rate</p>
-                                    <p class="text-3xl font-bold text-gray-900" id="engagementRate">0%</p>
+                                    <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Engagement Rate</p>
+                                    <p class="text-4xl font-bold text-gray-900 mt-2" id="engagementRate">0%</p>
                                 </div>
-                                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-heart text-green-600 text-xl"></i>
+                                <div class="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center">
+                                    <i class="fas fa-heart text-green-600 text-2xl"></i>
                                 </div>
                             </div>
-                            <div class="mt-4 flex items-center">
-                                <span class="text-green-500 text-sm font-medium">+8%</span>
-                                <span class="text-gray-500 text-sm ml-2">from last month</span>
+                            <div class="flex items-center">
+                                <span class="text-green-500 text-sm font-semibold">+8.2%</span>
+                                <span class="text-gray-500 text-sm ml-2">above average</span>
                             </div>
                         </div>
                         
-                        <div class="bg-white rounded-xl p-6 card-shadow">
-                            <div class="flex items-center justify-between">
+                        <div class="bg-white rounded-2xl p-8 card-shadow hover:shadow-lg transition-all">
+                            <div class="flex items-center justify-between mb-4">
                                 <div>
-                                    <p class="text-sm font-medium text-gray-600">Connections</p>
-                                    <p class="text-3xl font-bold text-gray-900" id="totalConnections">0</p>
+                                    <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Network Growth</p>
+                                    <p class="text-4xl font-bold text-gray-900 mt-2" id="totalConnections">0</p>
                                 </div>
-                                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-users text-purple-600 text-xl"></i>
+                                <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center">
+                                    <i class="fas fa-users text-purple-600 text-2xl"></i>
                                 </div>
                             </div>
-                            <div class="mt-4 flex items-center">
-                                <span class="text-green-500 text-sm font-medium">+25</span>
+                            <div class="flex items-center">
+                                <span class="text-green-500 text-sm font-semibold">+47</span>
                                 <span class="text-gray-500 text-sm ml-2">this week</span>
                             </div>
                         </div>
                         
-                        <div class="bg-white rounded-xl p-6 card-shadow">
-                            <div class="flex items-center justify-between">
+                        <div class="bg-white rounded-2xl p-8 card-shadow hover:shadow-lg transition-all">
+                            <div class="flex items-center justify-between mb-4">
                                 <div>
-                                    <p class="text-sm font-medium text-gray-600">Active Campaigns</p>
-                                    <p class="text-3xl font-bold text-gray-900" id="activeCampaigns">0</p>
+                                    <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Active Campaigns</p>
+                                    <p class="text-4xl font-bold text-gray-900 mt-2" id="activeCampaigns">0</p>
                                 </div>
-                                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-bullhorn text-orange-600 text-xl"></i>
+                                <div class="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center">
+                                    <i class="fas fa-bullhorn text-orange-600 text-2xl"></i>
                                 </div>
                             </div>
-                            <div class="mt-4 flex items-center">
-                                <span class="text-blue-500 text-sm font-medium">2 running</span>
+                            <div class="flex items-center">
+                                <span class="text-blue-500 text-sm font-semibold">2 running</span>
                                 <span class="text-gray-500 text-sm ml-2">campaigns</span>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Charts and Recent Activity -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <!-- Engagement Chart -->
-                        <div class="bg-white rounded-xl p-6 card-shadow">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Engagement Overview</h3>
-                            <canvas id="engagementChart" width="400" height="200"></canvas>
+                    <!-- Enhanced Charts and Activity -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Performance Chart -->
+                        <div class="lg:col-span-2 bg-white rounded-2xl p-8 card-shadow">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="text-xl font-bold text-gray-900">Performance Analytics</h3>
+                                <div class="flex space-x-2">
+                                    <button class="px-4 py-2 text-sm bg-linkedin text-white rounded-lg">7D</button>
+                                    <button class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">30D</button>
+                                    <button class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">90D</button>
+                                </div>
+                            </div>
+                            <canvas id="engagementChart" height="120"></canvas>
                         </div>
                         
-                        <!-- Recent Posts -->
-                        <div class="bg-white rounded-xl p-6 card-shadow">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Posts</h3>
+                        <!-- Recent Activity -->
+                        <div class="bg-white rounded-2xl p-8 card-shadow">
+                            <h3 class="text-xl font-bold text-gray-900 mb-6">Recent Activity</h3>
                             <div id="recentPosts" class="space-y-4">
-                                <!-- Recent posts will be loaded here -->
+                                <!-- Activity items will be loaded here -->
                             </div>
+                            <button onclick="showSection('analytics')" class="w-full mt-6 text-linkedin font-semibold hover:bg-linkedin/5 py-3 rounded-xl transition-all">
+                                View All Activity →
+                            </button>
                         </div>
                     </div>
                 </section>
                 
-                <!-- Content Generator Section -->
-                <section id="content-generator-section" class="section-content p-6 hidden">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-2">AI Content Generator</h2>
-                        <p class="text-gray-600">Create engaging LinkedIn posts with AI assistance</p>
+                <!-- Enhanced Content Generator Section -->
+                <section id="content-generator-section" class="section-content p-8 hidden fade-in">
+                    <div class="mb-10">
+                        <h2 class="text-4xl font-bold text-gray-900 mb-3">AI Content Studio</h2>
+                        <p class="text-gray-600 text-lg">Create engaging LinkedIn content with advanced AI assistance</p>
                     </div>
                     
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <!-- Content Input -->
-                        <div class="bg-white rounded-xl p-6 card-shadow">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Generate Content</h3>
+                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                        <!-- Content Creation Panel -->
+                        <div class="xl:col-span-2 space-y-8">
+                            <!-- Content Input -->
+                            <div class="bg-white rounded-2xl p-8 card-shadow">
+                                <h3 class="text-xl font-bold text-gray-900 mb-6">Content Creation</h3>
+                                
+                                <form id="contentGeneratorForm" class="space-y-6">
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-3">What would you like to share?</label>
+                                        <textarea id="contentPrompt" rows="4" class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-linkedin focus:border-transparent transition-all resize-none" placeholder="Describe your content idea, key message, or topic you want to discuss..."></textarea>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-700 mb-3">Content Type</label>
+                                            <select id="contentType" class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-linkedin focus:border-transparent transition-all">
+                                                <option value="professional">Professional Update</option>
+                                                <option value="thought-leadership">Thought Leadership</option>
+                                                <option value="industry-news">Industry Insights</option>
+                                                <option value="personal-story">Personal Story</option>
+                                                <option value="tips-advice">Tips & Advice</option>
+                                                <option value="company-news">Company News</option>
+                                                <option value="case-study">Case Study</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-700 mb-3">Target Audience</label>
+                                            <input type="text" id="targetAudience" class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-linkedin focus:border-transparent transition-all" placeholder="e.g., Marketing professionals, Tech leaders">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex flex-wrap gap-4">
+                                        <button type="submit" class="flex-1 btn-primary text-white py-4 px-6 rounded-xl font-semibold">
+                                            <i class="fas fa-magic mr-2"></i>Generate Content
+                                        </button>
+                                        <button type="button" onclick="generateImage()" class="px-6 py-4 border-2 border-linkedin text-linkedin rounded-xl font-semibold hover:bg-linkedin hover:text-white transition-all">
+                                            <i class="fas fa-image mr-2"></i>Add Visual
+                                        </button>
+                                        <button type="button" onclick="uploadMedia()" class="px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all">
+                                            <i class="fas fa-upload mr-2"></i>Upload
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                             
-                            <form id="contentGeneratorForm" class="space-y-6">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Content Prompt</label>
-                                    <textarea id="contentPrompt" rows="4" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin focus:border-transparent" placeholder="Describe what you want to post about..."></textarea>
+                            <!-- Generated Content Preview -->
+                            <div class="bg-white rounded-2xl p-8 card-shadow">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h3 class="text-xl font-bold text-gray-900">Content Preview</h3>
+                                    <div class="flex space-x-2">
+                                        <button onclick="regenerateContent()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
+                                            <i class="fas fa-redo mr-1"></i>Regenerate
+                                        </button>
+                                        <button onclick="editContent()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
+                                            <i class="fas fa-edit mr-1"></i>Edit
+                                        </button>
+                                    </div>
                                 </div>
                                 
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Content Type</label>
-                                    <select id="contentType" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin focus:border-transparent">
-                                        <option value="professional">Professional Update</option>
-                                        <option value="thought-leadership">Thought Leadership</option>
-                                        <option value="industry-news">Industry News</option>
-                                        <option value="personal-story">Personal Story</option>
-                                        <option value="tips-advice">Tips & Advice</option>
-                                    </select>
+                                <div id="generatedContent" class="mb-6">
+                                    <div class="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center text-gray-500">
+                                        <i class="fas fa-file-alt text-5xl mb-4 text-gray-400"></i>
+                                        <p class="text-lg font-medium">Generated content will appear here</p>
+                                        <p class="text-sm">Use the form above to create your LinkedIn post</p>
+                                    </div>
                                 </div>
                                 
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Target Audience</label>
-                                    <input type="text" id="targetAudience" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin focus:border-transparent" placeholder="e.g., Marketing professionals, Entrepreneurs">
+                                <div id="generatedImage" class="mb-6 hidden">
+                                    <img id="generatedImagePreview" class="w-full image-preview" alt="Generated image">
                                 </div>
                                 
-                                <div class="flex space-x-4">
-                                    <button type="submit" class="flex-1 btn-primary text-white py-3 rounded-lg font-medium">
-                                        <i class="fas fa-magic mr-2"></i>Generate Content
+                                <div class="flex flex-wrap gap-4">
+                                    <button onclick="publishPost()" class="flex-1 btn-primary text-white py-4 px-6 rounded-xl font-semibold">
+                                        <i class="fas fa-share mr-2"></i>Publish Now
                                     </button>
-                                    <button type="button" onclick="generateImage()" class="px-6 py-3 border border-linkedin text-linkedin rounded-lg font-medium hover:bg-linkedin hover:text-white transition-colors">
-                                        <i class="fas fa-image mr-2"></i>Add Image
+                                    <button onclick="schedulePost()" class="flex-1 btn-secondary text-white py-4 px-6 rounded-xl font-semibold">
+                                        <i class="fas fa-clock mr-2"></i>Schedule
+                                    </button>
+                                    <button onclick="saveDraft()" class="px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all">
+                                        <i class="fas fa-save mr-2"></i>Save Draft
                                     </button>
                                 </div>
-                            </form>
+                            </div>
                         </div>
                         
-                        <!-- Content Preview -->
-                        <div class="bg-white rounded-xl p-6 card-shadow">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Content Preview</h3>
-                            
-                            <div id="generatedContent" class="mb-6">
-                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-500">
-                                    <i class="fas fa-file-alt text-4xl mb-4"></i>
-                                    <p>Generated content will appear here</p>
+                        <!-- Content Optimization Panel -->
+                        <div class="space-y-8">
+                            <!-- AI Suggestions -->
+                            <div class="bg-white rounded-2xl p-6 card-shadow">
+                                <h3 class="text-lg font-bold text-gray-900 mb-4">AI Suggestions</h3>
+                                <div id="aiSuggestions" class="space-y-3">
+                                    <div class="p-3 bg-blue-50 rounded-lg">
+                                        <p class="text-sm font-medium text-blue-800">Optimal Posting Time</p>
+                                        <p class="text-xs text-blue-600">Tuesday, 9:00 AM</p>
+                                    </div>
+                                    <div class="p-3 bg-green-50 rounded-lg">
+                                        <p class="text-sm font-medium text-green-800">Engagement Boost</p>
+                                        <p class="text-xs text-green-600">Add 2-3 relevant hashtags</p>
+                                    </div>
+                                    <div class="p-3 bg-purple-50 rounded-lg">
+                                        <p class="text-sm font-medium text-purple-800">Content Length</p>
+                                        <p class="text-xs text-purple-600">Optimal: 150-300 characters</p>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div id="generatedImage" class="mb-6 hidden">
-                                <img id="generatedImagePreview" class="w-full rounded-lg" alt="Generated image">
+                            <!-- Content History -->
+                            <div class="bg-white rounded-2xl p-6 card-shadow">
+                                <h3 class="text-lg font-bold text-gray-900 mb-4">Recent Drafts</h3>
+                                <div id="contentHistory" class="space-y-3">
+                                    <!-- Content history will be loaded here -->
+                                </div>
                             </div>
                             
-                            <div class="flex space-x-4">
-                                <button onclick="publishPost()" class="flex-1 btn-primary text-white py-3 rounded-lg font-medium">
-                                    <i class="fas fa-share mr-2"></i>Publish Now
-                                </button>
-                                <button onclick="schedulePost()" class="flex-1 border border-linkedin text-linkedin py-3 rounded-lg font-medium hover:bg-linkedin hover:text-white transition-colors">
-                                    <i class="fas fa-clock mr-2"></i>Schedule
-                                </button>
+                            <!-- Performance Predictor -->
+                            <div class="bg-white rounded-2xl p-6 card-shadow">
+                                <h3 class="text-lg font-bold text-gray-900 mb-4">Performance Prediction</h3>
+                                <div class="space-y-4">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-600">Expected Reach</span>
+                                        <span class="font-semibold text-gray-900">2.5K - 3.2K</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-600">Engagement Rate</span>
+                                        <span class="font-semibold text-green-600">4.2% - 6.8%</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-600">Best Time to Post</span>
+                                        <span class="font-semibold text-blue-600">In 2 hours</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </section>
                 
                 <!-- Post Scheduler Section -->
-                <section id="post-scheduler-section" class="section-content p-6 hidden">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-2">Post Scheduler</h2>
-                        <p class="text-gray-600">Schedule and manage your LinkedIn posts</p>
+                <section id="post-scheduler-section" class="section-content p-8 hidden fade-in">
+                    <div class="mb-10">
+                        <h2 class="text-4xl font-bold text-gray-900 mb-3">Smart Scheduler</h2>
+                        <p class="text-gray-600 text-lg">Schedule and manage your LinkedIn posts</p>
                     </div>
                     
                     <!-- Calendar View -->
-                    <div class="bg-white rounded-xl p-6 card-shadow mb-8">
+                    <div class="bg-white rounded-2xl p-8 card-shadow mb-8">
                         <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-lg font-semibold text-gray-900">Scheduled Posts Calendar</h3>
-                            <button onclick="showScheduleModal()" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">
+                            <h3 class="text-xl font-bold text-gray-900">Scheduled Posts Calendar</h3>
+                            <button onclick="showScheduleModal()" class="btn-primary text-white px-4 py-2 rounded-xl font-semibold">
                                 <i class="fas fa-plus mr-2"></i>Schedule Post
                             </button>
                         </div>
@@ -487,8 +722,8 @@
                     </div>
                     
                     <!-- Scheduled Posts List -->
-                    <div class="bg-white rounded-xl p-6 card-shadow">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Upcoming Posts</h3>
+                    <div class="bg-white rounded-2xl p-8 card-shadow">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Upcoming Posts</h3>
                         <div id="scheduledPostsList" class="space-y-4">
                             <!-- Scheduled posts will be loaded here -->
                         </div>
@@ -496,21 +731,21 @@
                 </section>
                 
                 <!-- Automation Section -->
-                <section id="automation-section" class="section-content p-6 hidden">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-2">LinkedIn Automation</h2>
-                        <p class="text-gray-600">Automate your LinkedIn networking and engagement</p>
+                <section id="automation-section" class="section-content p-8 hidden fade-in">
+                    <div class="mb-10">
+                        <h2 class="text-4xl font-bold text-gray-900 mb-3">Auto Engagement</h2>
+                        <p class="text-gray-600 text-lg">Automate your LinkedIn networking and engagement</p>
                     </div>
                     
                     <!-- Automation Rules -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div class="bg-white rounded-xl p-6 card-shadow">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Automation Rules</h3>
+                        <div class="bg-white rounded-2xl p-8 card-shadow">
+                            <h3 class="text-xl font-bold text-gray-900 mb-4">Automation Rules</h3>
                             
                             <div class="space-y-4">
-                                <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="border border-gray-200 rounded-xl p-4">
                                     <div class="flex items-center justify-between mb-2">
-                                        <h4 class="font-medium text-gray-900">Auto Connect</h4>
+                                        <h4 class="font-semibold text-gray-900">Auto Connect</h4>
                                         <label class="relative inline-flex items-center cursor-pointer">
                                             <input type="checkbox" class="sr-only peer">
                                             <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-linkedin"></div>
@@ -520,9 +755,9 @@
                                     <div class="mt-2 text-xs text-gray-500">Daily limit: 50 connections</div>
                                 </div>
                                 
-                                <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="border border-gray-200 rounded-xl p-4">
                                     <div class="flex items-center justify-between mb-2">
-                                        <h4 class="font-medium text-gray-900">Auto Like</h4>
+                                        <h4 class="font-semibold text-gray-900">Auto Like</h4>
                                         <label class="relative inline-flex items-center cursor-pointer">
                                             <input type="checkbox" class="sr-only peer">
                                             <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-linkedin"></div>
@@ -532,9 +767,9 @@
                                     <div class="mt-2 text-xs text-gray-500">Daily limit: 100 likes</div>
                                 </div>
                                 
-                                <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="border border-gray-200 rounded-xl p-4">
                                     <div class="flex items-center justify-between mb-2">
-                                        <h4 class="font-medium text-gray-900">Auto Comment</h4>
+                                        <h4 class="font-semibold text-gray-900">Auto Comment</h4>
                                         <label class="relative inline-flex items-center cursor-pointer">
                                             <input type="checkbox" class="sr-only peer">
                                             <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-linkedin"></div>
@@ -545,19 +780,19 @@
                                 </div>
                             </div>
                             
-                            <button class="w-full mt-6 btn-primary text-white py-3 rounded-lg font-medium">
+                            <button class="w-full mt-6 btn-primary text-white py-4 rounded-xl font-semibold">
                                 <i class="fas fa-cog mr-2"></i>Configure Rules
                             </button>
                         </div>
                         
                         <!-- Automation Stats -->
-                        <div class="bg-white rounded-xl p-6 card-shadow">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Automation Statistics</h3>
+                        <div class="bg-white rounded-2xl p-8 card-shadow">
+                            <h3 class="text-xl font-bold text-gray-900 mb-4">Automation Statistics</h3>
                             
                             <div class="space-y-6">
                                 <div>
                                     <div class="flex justify-between items-center mb-2">
-                                        <span class="text-sm font-medium text-gray-600">Connections Sent Today</span>
+                                        <span class="text-sm font-semibold text-gray-600">Connections Sent Today</span>
                                         <span class="text-sm font-bold text-gray-900">15/50</span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-2">
@@ -567,7 +802,7 @@
                                 
                                 <div>
                                     <div class="flex justify-between items-center mb-2">
-                                        <span class="text-sm font-medium text-gray-600">Likes Today</span>
+                                        <span class="text-sm font-semibold text-gray-600">Likes Today</span>
                                         <span class="text-sm font-bold text-gray-900">45/100</span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-2">
@@ -577,7 +812,7 @@
                                 
                                 <div>
                                     <div class="flex justify-between items-center mb-2">
-                                        <span class="text-sm font-medium text-gray-600">Comments Today</span>
+                                        <span class="text-sm font-semibold text-gray-600">Comments Today</span>
                                         <span class="text-sm font-bold text-gray-900">8/25</span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-2">
@@ -586,7 +821,7 @@
                                 </div>
                             </div>
                             
-                            <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
                                 <div class="flex items-center">
                                     <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
                                     <p class="text-sm text-yellow-800">
@@ -598,39 +833,71 @@
                     </div>
                 </section>
                 
-                <!-- Other sections will be added here -->
-                <section id="campaigns-section" class="section-content p-6 hidden">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-2">Marketing Campaigns</h2>
-                        <p class="text-gray-600">Create and manage your marketing campaigns</p>
+                <!-- Campaigns Section -->
+                <section id="campaigns-section" class="section-content p-8 hidden fade-in">
+                    <div class="mb-10">
+                        <h2 class="text-4xl font-bold text-gray-900 mb-3">Campaign Manager</h2>
+                        <p class="text-gray-600 text-lg">Create and manage your marketing campaigns</p>
                     </div>
                     <!-- Campaign content will be added -->
                 </section>
                 
-                <section id="analytics-section" class="section-content p-6 hidden">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-2">Analytics</h2>
-                        <p class="text-gray-600">Track your LinkedIn performance</p>
+                <!-- Analytics Section -->
+                <section id="analytics-section" class="section-content p-8 hidden fade-in">
+                    <div class="mb-10">
+                        <h2 class="text-4xl font-bold text-gray-900 mb-3">Advanced Analytics</h2>
+                        <p class="text-gray-600 text-lg">Track your LinkedIn performance</p>
                     </div>
                     <!-- Analytics content will be added -->
                 </section>
                 
-                <section id="file-manager-section" class="section-content p-6 hidden">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-2">File Manager</h2>
-                        <p class="text-gray-600">Upload and manage your content files</p>
+                <!-- File Manager Section -->
+                <section id="file-manager-section" class="section-content p-8 hidden fade-in">
+                    <div class="mb-10">
+                        <h2 class="text-4xl font-bold text-gray-900 mb-3">Media Library</h2>
+                        <p class="text-gray-600 text-lg">Upload and manage your content files</p>
                     </div>
                     <!-- File manager content will be added -->
                 </section>
                 
-                <section id="linkedin-integration-section" class="section-content p-6 hidden">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-2">LinkedIn Integration</h2>
-                        <p class="text-gray-600">Connect your LinkedIn account</p>
+                <!-- LinkedIn Integration Section -->
+                <section id="linkedin-integration-section" class="section-content p-8 hidden fade-in">
+                    <div class="mb-10">
+                        <h2 class="text-4xl font-bold text-gray-900 mb-3">LinkedIn Connect</h2>
+                        <p class="text-gray-600 text-lg">Connect your LinkedIn account</p>
                     </div>
                     <!-- LinkedIn integration content will be added -->
                 </section>
             </main>
+        </div>
+    </div>
+    
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-2xl w-full mx-6 card-shadow-lg">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">Upload Media</h3>
+                <button onclick="closeUploadModal()" class="p-2 text-gray-500 hover:text-gray-700 rounded-lg">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div id="uploadZone" class="upload-zone rounded-xl p-12 text-center cursor-pointer">
+                <i class="fas fa-cloud-upload-alt text-5xl text-gray-400 mb-4"></i>
+                <p class="text-lg font-semibold text-gray-700 mb-2">Drop files here or click to browse</p>
+                <p class="text-sm text-gray-500">Supports PDF, images, videos up to 50MB</p>
+                <input type="file" id="fileInput" class="hidden" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.mp4,.mov">
+            </div>
+            
+            <div id="uploadProgress" class="mt-6 hidden">
+                <div class="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>Uploading...</span>
+                    <span id="uploadPercent">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="progressBar" class="progress-bar h-2 rounded-full" style="width: 0%"></div>
+                </div>
+            </div>
         </div>
     </div>
     

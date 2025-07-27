@@ -684,3 +684,321 @@ def linkedin_status():
             "auth_url": linkedin_service.get_authorization_url()
         })
 
+    # Advanced Image Generation Routes
+    @app.route('/api/image/generate-advanced', methods=['POST'])
+    @token_required
+    @limiter.limit("10 per minute")
+    def generate_advanced_image():
+        """Generate image with advanced options and instant preview"""
+        try:
+            data = request.get_json()
+            prompt = data.get('prompt', '')
+            style = data.get('style', 'professional')
+            size = data.get('size', '1024x1024')
+            
+            if not prompt:
+                return jsonify({'success': False, 'error': 'Prompt is required'}), 400
+            
+            # Import here to avoid circular imports
+            from image_generation_service import image_service
+            import asyncio
+            
+            # Generate image asynchronously
+            result = asyncio.run(image_service.generate_image_async(prompt, style, size))
+            
+            if result['success']:
+                # Optimize for LinkedIn
+                optimized = image_service.optimize_image_for_linkedin(result['filepath'])
+                result['optimized_images'] = optimized.get('optimized_images', {})
+                
+                return jsonify({
+                    'success': True,
+                    'image_url': result['image_url'],
+                    'thumbnail_url': result.get('thumbnail_url'),
+                    'optimized_images': result.get('optimized_images', {}),
+                    'provider': result.get('provider'),
+                    'enhanced_prompt': result.get('enhanced_prompt'),
+                    'message': 'Image generated successfully'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': result.get('error', 'Image generation failed'),
+                    'fallback_available': result.get('fallback_available', False)
+                }), 500
+                
+        except Exception as e:
+            logger.error(f"Advanced image generation error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/image/variations', methods=['POST'])
+    @token_required
+    @limiter.limit("5 per minute")
+    def generate_image_variations():
+        """Generate multiple variations of an image"""
+        try:
+            data = request.get_json()
+            prompt = data.get('prompt', '')
+            count = min(data.get('count', 3), 5)  # Limit to 5 variations
+            
+            if not prompt:
+                return jsonify({'success': False, 'error': 'Prompt is required'}), 400
+            
+            from image_generation_service import image_service
+            
+            result = image_service.generate_image_variations(prompt, count)
+            
+            return jsonify(result)
+            
+        except Exception as e:
+            logger.error(f"Image variations error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # Advanced Automation Routes
+    @app.route('/api/automation/launch-campaign', methods=['POST'])
+    @token_required
+    @limiter.limit("3 per hour")
+    def launch_automated_campaign():
+        """Launch an automated marketing campaign"""
+        try:
+            data = request.get_json()
+            user_id = g.current_user.id
+            
+            # Validate required fields
+            required_fields = ['name', 'target_audience', 'content_themes', 'duration_days']
+            for field in required_fields:
+                if not data.get(field):
+                    return jsonify({'success': False, 'error': f'{field} is required'}), 400
+            
+            from automation_engine import automation_engine, CampaignConfig
+            import asyncio
+            
+            # Create campaign configuration
+            campaign_config = CampaignConfig(
+                name=data['name'],
+                target_audience=data['target_audience'],
+                content_themes=data['content_themes'],
+                posting_schedule=data.get('posting_schedule', {'times_per_day': 1, 'optimal_times': []}),
+                duration_days=data['duration_days'],
+                daily_post_limit=data.get('daily_post_limit', 2),
+                engagement_goals=data.get('engagement_goals', {'likes': 50, 'comments': 10, 'shares': 5})
+            )
+            
+            # Launch campaign
+            result = asyncio.run(automation_engine.launch_automated_campaign(user_id, campaign_config))
+            
+            return jsonify(result)
+            
+        except Exception as e:
+            logger.error(f"Campaign launch error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/automation/setup-auto-follow', methods=['POST'])
+    @token_required
+    @limiter.limit("2 per hour")
+    def setup_auto_follow():
+        """Set up automated following system"""
+        try:
+            data = request.get_json()
+            user_id = g.current_user.id
+            
+            # Validate required fields
+            if not data.get('categories') or not data.get('connection_message_template'):
+                return jsonify({'success': False, 'error': 'Categories and message template are required'}), 400
+            
+            from automation_engine import automation_engine, AutoFollowConfig, TargetCategory
+            import asyncio
+            
+            # Convert category strings to enums
+            try:
+                categories = [TargetCategory(cat) for cat in data['categories']]
+            except ValueError as e:
+                return jsonify({'success': False, 'error': f'Invalid category: {str(e)}'}), 400
+            
+            # Create auto-follow configuration
+            config = AutoFollowConfig(
+                categories=categories,
+                daily_limit=data.get('daily_limit', 50),
+                connection_message_template=data['connection_message_template'],
+                target_criteria=data.get('target_criteria', {})
+            )
+            
+            # Setup auto-follow system
+            result = asyncio.run(automation_engine.setup_auto_follow_system(user_id, config))
+            
+            return jsonify(result)
+            
+        except Exception as e:
+            logger.error(f"Auto-follow setup error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/automation/optimize-engagement', methods=['POST'])
+    @token_required
+    @limiter.limit("5 per hour")
+    def optimize_engagement():
+        """Automatically optimize engagement based on performance"""
+        try:
+            user_id = g.current_user.id
+            
+            from automation_engine import automation_engine
+            import asyncio
+            
+            result = asyncio.run(automation_engine.optimize_engagement_automatically(user_id))
+            
+            return jsonify(result)
+            
+        except Exception as e:
+            logger.error(f"Engagement optimization error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/automation/boost-conversations', methods=['POST'])
+    @token_required
+    @limiter.limit("3 per hour")
+    def boost_conversations():
+        """Automatically boost conversations and engagement"""
+        try:
+            user_id = g.current_user.id
+            
+            from automation_engine import automation_engine
+            import asyncio
+            
+            result = asyncio.run(automation_engine.boost_conversation_engagement(user_id))
+            
+            return jsonify(result)
+            
+        except Exception as e:
+            logger.error(f"Conversation boosting error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/automation/campaign-status/<int:campaign_id>', methods=['GET'])
+    @token_required
+    def get_campaign_status(campaign_id):
+        """Get status of an automated campaign"""
+        try:
+            user_id = g.current_user.id
+            
+            campaign = MarketingCampaign.query.filter_by(
+                id=campaign_id, 
+                user_id=user_id
+            ).first()
+            
+            if not campaign:
+                return jsonify({'success': False, 'error': 'Campaign not found'}), 404
+            
+            # Get campaign metrics
+            posts_count = Post.query.filter_by(user_id=user_id).filter(
+                Post.created_at >= campaign.start_date
+            ).count()
+            
+            total_engagement = db.session.query(
+                db.func.sum(Post.likes_count + Post.comments_count + Post.shares_count)
+            ).filter_by(user_id=user_id).filter(
+                Post.created_at >= campaign.start_date
+            ).scalar() or 0
+            
+            return jsonify({
+                'success': True,
+                'campaign': {
+                    'id': campaign.id,
+                    'name': campaign.name,
+                    'status': campaign.status,
+                    'start_date': campaign.start_date.isoformat(),
+                    'end_date': campaign.end_date.isoformat() if campaign.end_date else None,
+                    'posts_created': posts_count,
+                    'total_engagement': total_engagement,
+                    'target_audience': campaign.target_audience,
+                    'content_strategy': campaign.content_strategy
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Campaign status error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # Enhanced Post Publishing with Retry Logic
+    @app.route('/api/posts/publish-with-retry', methods=['POST'])
+    @token_required
+    @limiter.limit("10 per hour")
+    def publish_post_with_retry():
+        """Publish post with retry logic and status updates"""
+        try:
+            data = request.get_json()
+            user_id = g.current_user.id
+            
+            content = data.get('content', '').strip()
+            if not content:
+                return jsonify({'success': False, 'error': 'Content is required'}), 400
+            
+            # Create post record
+            post = Post(
+                user_id=user_id,
+                content=content,
+                hashtags=data.get('hashtags', []),
+                image_url=data.get('image_url'),
+                video_url=data.get('video_url'),
+                article_url=data.get('article_url'),
+                post_type=data.get('post_type', 'text'),
+                status='publishing'
+            )
+            
+            db.session.add(post)
+            db.session.commit()
+            
+            # Attempt to publish with retry logic
+            max_retries = 3
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    # Attempt LinkedIn API call
+                    linkedin_result = linkedin_service.create_post(
+                        content=content,
+                        image_url=data.get('image_url'),
+                        video_url=data.get('video_url')
+                    )
+                    
+                    if linkedin_result.get('success'):
+                        # Update post status
+                        post.status = 'published'
+                        post.linkedin_url = linkedin_result.get('post_url')
+                        post.published_at = datetime.utcnow()
+                        db.session.commit()
+                        
+                        return jsonify({
+                            'success': True,
+                            'post_id': post.id,
+                            'linkedin_url': post.linkedin_url,
+                            'message': 'Post published successfully',
+                            'retry_count': retry_count
+                        })
+                    else:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            # Wait before retry (exponential backoff)
+                            import time
+                            time.sleep(2 ** retry_count)
+                        
+                except Exception as e:
+                    retry_count += 1
+                    logger.warning(f"Publish attempt {retry_count} failed: {str(e)}")
+                    
+                    if retry_count < max_retries:
+                        import time
+                        time.sleep(2 ** retry_count)
+            
+            # All retries failed
+            post.status = 'failed'
+            post.error_message = 'Failed to publish after multiple attempts'
+            db.session.commit()
+            
+            return jsonify({
+                'success': False,
+                'post_id': post.id,
+                'error': 'Failed to publish after multiple retries',
+                'retry_count': retry_count
+            }), 500
+            
+        except Exception as e:
+            logger.error(f"Publish with retry error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+

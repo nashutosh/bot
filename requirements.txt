@@ -52,3 +52,6 @@ click>=8.1.7
 
 # Development tools
 python-decouple>=3.8
+
+# Task scheduling
+schedule>=1.2.0

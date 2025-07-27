@@ -119,6 +119,11 @@ if [ "$1" = "prod" ] || [ "$1" = "production" ]; then
         pip install gunicorn
     fi
     
+    # Start task scheduler in background
+    print_status "Starting task scheduler..."
+    python task_scheduler.py start &
+    SCHEDULER_PID=$!
+    
     print_status "Starting application with Gunicorn..."
     gunicorn -w 4 -b 0.0.0.0:5000 --timeout 120 --keep-alive 2 app:app
 else
@@ -126,6 +131,24 @@ else
     print_status "Application will be available at: http://localhost:5000"
     print_status "Press Ctrl+C to stop the server"
     echo ""
+    
+    # Start task scheduler in background
+    print_status "Starting task scheduler..."
+    python task_scheduler.py start &
+    SCHEDULER_PID=$!
+    
+    # Function to cleanup on exit
+    cleanup() {
+        print_status "Shutting down..."
+        if [ ! -z "$SCHEDULER_PID" ]; then
+            kill $SCHEDULER_PID 2>/dev/null
+            print_status "Task scheduler stopped"
+        fi
+        exit 0
+    }
+    
+    # Set trap to cleanup on script exit
+    trap cleanup INT TERM
     
     # Start the Flask development server
     python app.py
