@@ -4,7 +4,6 @@ from datetime import datetime
 from flask import render_template, request, jsonify, current_app, g, Blueprint
 from app import db, limiter
 from models import Post, UploadedFile, AutomationRule, MarketingCampaign, LinkedInProfile, User
-from auth_service import AuthService, token_required, optional_auth
 from gemini_service import generate_linkedin_post, generate_image_with_gemini
 from stability_service import generate_image_with_stability
 from pdf_service import process_pdf_file
@@ -17,90 +16,12 @@ def register_routes(app):
     """Register all application routes"""
     
     @app.route('/')
-    @optional_auth
     def index():
         """Main application page"""
         return render_template('index.html')
     
-    # Authentication Routes
-    @app.route('/api/auth/register', methods=['POST'])
-    @limiter.limit("5 per minute")
-    def register():
-        """User registration"""
-        try:
-            data = request.get_json()
-            if not data:
-                return jsonify({'success': False, 'error': 'No data provided'}), 400
-            
-            required_fields = ['username', 'email', 'password']
-            for field in required_fields:
-                if not data.get(field):
-                    return jsonify({'success': False, 'error': f'{field} is required'}), 400
-            
-            result = AuthService.create_user(
-                username=data['username'],
-                email=data['email'],
-                password=data['password'],
-                first_name=data.get('first_name'),
-                last_name=data.get('last_name')
-            )
-            
-            return jsonify(result)
-            
-        except Exception as e:
-            logger.error(f"Registration error: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 400
-    
-    @app.route('/api/auth/login', methods=['POST'])
-    @limiter.limit("10 per minute")
-    def login():
-        """User login"""
-        try:
-            data = request.get_json()
-            if not data:
-                return jsonify({'success': False, 'error': 'No data provided'}), 400
-            
-            username = data.get('username')
-            password = data.get('password')
-            
-            if not username or not password:
-                return jsonify({'success': False, 'error': 'Username and password are required'}), 400
-            
-            result = AuthService.authenticate_user(username, password)
-            return jsonify(result)
-            
-        except Exception as e:
-            logger.error(f"Login error: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 401
-    
-    @app.route('/api/auth/refresh', methods=['POST'])
-    def refresh_token():
-        """Refresh access token"""
-        try:
-            data = request.get_json()
-            if not data or not data.get('refresh_token'):
-                return jsonify({'success': False, 'error': 'Refresh token is required'}), 400
-            
-            result = AuthService.refresh_token(data['refresh_token'])
-            return jsonify(result)
-            
-        except Exception as e:
-            logger.error(f"Token refresh error: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 401
-    
-    @app.route('/api/auth/validate', methods=['GET'])
-    @token_required
-    def validate_token():
-        """Validate current token and return user info"""
-        return jsonify({
-            'success': True,
-            'user': g.current_user.to_dict(),
-            'message': 'Token is valid'
-        })
-    
     # Dashboard Routes
     @app.route('/api/dashboard/stats', methods=['GET'])
-    @token_required
     def dashboard_stats():
         """Get dashboard statistics"""
         try:
@@ -134,7 +55,6 @@ def register_routes(app):
             return jsonify({'success': False, 'error': str(e)}), 500
     
     @app.route('/api/posts/recent', methods=['GET'])
-    @token_required
     def recent_posts():
         """Get recent posts for the current user"""
         try:
@@ -152,7 +72,6 @@ def register_routes(app):
 
     # Content Generation Routes
     @app.route('/api/generate-content', methods=['POST'])
-    @token_required
     @limiter.limit("20 per hour")
     def generate_content():
         """Generate LinkedIn post content using AI"""
@@ -192,7 +111,6 @@ def register_routes(app):
             }), 500
 
     @app.route('/api/generate-image', methods=['POST'])
-    @token_required
     @limiter.limit("10 per hour")
     def generate_image():
         """Generate image for LinkedIn post"""
@@ -287,7 +205,6 @@ def upload_pdf():
 
     # Post Management Routes
     @app.route('/api/create-post', methods=['POST'])
-    @token_required
     @limiter.limit("30 per hour")
     def create_post():
         """Create and optionally publish/schedule a LinkedIn post"""
@@ -686,7 +603,6 @@ def linkedin_status():
 
     # Advanced Image Generation Routes
     @app.route('/api/image/generate-advanced', methods=['POST'])
-    @token_required
     @limiter.limit("10 per minute")
     def generate_advanced_image():
         """Generate image with advanced options and instant preview"""
@@ -732,7 +648,6 @@ def linkedin_status():
             return jsonify({'success': False, 'error': str(e)}), 500
     
     @app.route('/api/image/variations', methods=['POST'])
-    @token_required
     @limiter.limit("5 per minute")
     def generate_image_variations():
         """Generate multiple variations of an image"""
@@ -756,7 +671,6 @@ def linkedin_status():
     
     # Advanced Automation Routes
     @app.route('/api/automation/launch-campaign', methods=['POST'])
-    @token_required
     @limiter.limit("3 per hour")
     def launch_automated_campaign():
         """Launch an automated marketing campaign"""
@@ -794,7 +708,6 @@ def linkedin_status():
             return jsonify({'success': False, 'error': str(e)}), 500
     
     @app.route('/api/automation/setup-auto-follow', methods=['POST'])
-    @token_required
     @limiter.limit("2 per hour")
     def setup_auto_follow():
         """Set up automated following system"""
@@ -833,7 +746,6 @@ def linkedin_status():
             return jsonify({'success': False, 'error': str(e)}), 500
     
     @app.route('/api/automation/optimize-engagement', methods=['POST'])
-    @token_required
     @limiter.limit("5 per hour")
     def optimize_engagement():
         """Automatically optimize engagement based on performance"""
@@ -852,7 +764,6 @@ def linkedin_status():
             return jsonify({'success': False, 'error': str(e)}), 500
     
     @app.route('/api/automation/boost-conversations', methods=['POST'])
-    @token_required
     @limiter.limit("3 per hour")
     def boost_conversations():
         """Automatically boost conversations and engagement"""
@@ -871,7 +782,6 @@ def linkedin_status():
             return jsonify({'success': False, 'error': str(e)}), 500
     
     @app.route('/api/automation/campaign-status/<int:campaign_id>', methods=['GET'])
-    @token_required
     def get_campaign_status(campaign_id):
         """Get status of an automated campaign"""
         try:
@@ -917,7 +827,6 @@ def linkedin_status():
     
     # Enhanced Post Publishing with Retry Logic
     @app.route('/api/posts/publish-with-retry', methods=['POST'])
-    @token_required
     @limiter.limit("10 per hour")
     def publish_post_with_retry():
         """Publish post with retry logic and status updates"""

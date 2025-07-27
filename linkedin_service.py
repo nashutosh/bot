@@ -5,49 +5,9 @@ import requests
 
 class LinkedInService:
     def __init__(self):
-        self.client_id = os.environ.get("LINKEDIN_CLIENT_ID", "86rn2qqk775fwu")
-        self.client_secret = os.environ.get("LINKEDIN_CLIENT_SECRET", "WPL_AP1.9YvV50e1umGE236w.ChAN4g==")
-        self.access_token = os.environ.get("LINKEDIN_ACCESS_TOKEN")
+        self.access_token = os.environ.get("LINKEDIN_ACCESS_TOKEN")  # Loaded from .env
         self.api_base = "https://api.linkedin.com/v2"
-        self.redirect_uri = "http://localhost:5000/auth/linkedin/callback"
         
-    def get_authorization_url(self) -> str:
-        """Generate LinkedIn OAuth authorization URL"""
-        scope = "w_member_social,r_liteprofile,r_emailaddress"
-        auth_url = (
-            f"https://www.linkedin.com/oauth/v2/authorization?"
-            f"response_type=code&"
-            f"client_id={self.client_id}&"
-            f"redirect_uri={self.redirect_uri}&"
-            f"scope={scope}"
-        )
-        return auth_url
-    
-    def exchange_code_for_token(self, code: str) -> dict:
-        """Exchange authorization code for access token"""
-        try:
-            token_url = "https://www.linkedin.com/oauth/v2/accessToken"
-            data = {
-                'grant_type': 'authorization_code',
-                'code': code,
-                'redirect_uri': self.redirect_uri,
-                'client_id': self.client_id,
-                'client_secret': self.client_secret
-            }
-            
-            response = requests.post(token_url, data=data)
-            token_data = response.json()
-            
-            if 'access_token' in token_data:
-                self.access_token = token_data['access_token']
-                return {'success': True, 'token': token_data['access_token']}
-            else:
-                return {'success': False, 'error': token_data.get('error_description', 'Token exchange failed')}
-                
-        except Exception as e:
-            logging.error(f"Token exchange error: {str(e)}")
-            return {'success': False, 'error': str(e)}
-    
     def post_to_linkedin(self, content: str, image_url: str | None = None) -> dict:
         """Post content to LinkedIn"""
         try:
@@ -55,7 +15,6 @@ class LinkedInService:
                 return {
                     'success': False,
                     'error': 'Not authenticated',
-                    'auth_url': self.get_authorization_url(),
                     'message': 'Please authenticate with LinkedIn first'
                 }
             

@@ -28,7 +28,7 @@ class AutomationRule:
 
 class LinkedInAutomation:
     def __init__(self):
-        self.access_token = os.environ.get("LINKEDIN_ACCESS_TOKEN")
+        self.access_token = os.environ.get("LINKEDIN_ACCESS_TOKEN")  # Loaded from .env
         self.api_base = "https://api.linkedin.com/v2"
         self.daily_limits = {
             'connections': 100,  # LinkedIn daily limit

@@ -35,7 +35,7 @@ class Config:
     STABILITY_API_KEY = config('STABILITY_API_KEY', default='')
     
     # Redis Configuration
-    REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
+    # REDIS_URL removed
     
     # Email Configuration
     SMTP_SERVER = config('SMTP_SERVER', default='smtp.gmail.com')
@@ -45,14 +45,14 @@ class Config:
     SMTP_USE_TLS = True
     
     # Security Configuration
-    JWT_SECRET_KEY = config('JWT_SECRET_KEY', default='jwt-secret-key')
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
-    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
-    BCRYPT_LOG_ROUNDS = config('BCRYPT_LOG_ROUNDS', default=12, cast=int)
+    # JWT_SECRET_KEY removed
+    # JWT_ACCESS_TOKEN_EXPIRES removed
+    # JWT_REFRESH_TOKEN_EXPIRES removed
+    # BCRYPT_LOG_ROUNDS removed
     
     # Rate Limiting
-    RATELIMIT_STORAGE_URL = config('RATE_LIMIT_STORAGE_URL', default='redis://localhost:6379/1')
-    RATELIMIT_DEFAULT = "100 per hour"
+    # RATELIMIT_STORAGE_URL removed
+    # RATELIMIT_DEFAULT removed
     
     # Automation Limits
     DAILY_CONNECTION_LIMIT = config('DAILY_CONNECTION_LIMIT', default=100, cast=int)
@@ -70,13 +70,13 @@ class Config:
     TIMEZONE = config('TIMEZONE', default='UTC')
     
     # Celery Configuration
-    CELERY_BROKER_URL = REDIS_URL
-    CELERY_RESULT_BACKEND = REDIS_URL
-    CELERY_TASK_SERIALIZER = 'json'
-    CELERY_RESULT_SERIALIZER = 'json'
-    CELERY_ACCEPT_CONTENT = ['json']
-    CELERY_TIMEZONE = TIMEZONE
-    CELERY_ENABLE_UTC = True
+    # CELERY_BROKER_URL removed
+    # CELERY_RESULT_BACKEND removed
+    # CELERY_TASK_SERIALIZER removed
+    # CELERY_RESULT_SERIALIZER removed
+    # CELERY_ACCEPT_CONTENT removed
+    # CELERY_TIMEZONE removed
+    # CELERY_ENABLE_UTC removed
     
     @staticmethod
     def init_app(app):

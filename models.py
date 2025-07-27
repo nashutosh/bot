@@ -5,55 +5,6 @@ from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
 
-class User(db.Model):
-    """User model for authentication and user management"""
-    __tablename__ = 'users'
-    
-    id = Column(Integer, primary_key=True)
-    username = Column(String(80), unique=True, nullable=False)
-    email = Column(String(120), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    first_name = Column(String(50))
-    last_name = Column(String(50))
-    is_active = Column(Boolean, default=True)
-    is_admin = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    last_login = Column(DateTime)
-    
-    # LinkedIn Integration
-    linkedin_connected = Column(Boolean, default=False)
-    linkedin_access_token = Column(Text)
-    linkedin_profile_id = Column(String(100))
-    
-    # Relationships
-    posts = relationship('Post', backref='user', lazy=True, cascade='all, delete-orphan')
-    uploaded_files = relationship('UploadedFile', backref='user', lazy=True, cascade='all, delete-orphan')
-    automation_rules = relationship('AutomationRule', backref='user', lazy=True, cascade='all, delete-orphan')
-    marketing_campaigns = relationship('MarketingCampaign', backref='user', lazy=True, cascade='all, delete-orphan')
-    
-    def set_password(self, password):
-        """Set password hash"""
-        self.password_hash = generate_password_hash(password)
-    
-    def check_password(self, password):
-        """Check password against hash"""
-        return check_password_hash(self.password_hash, password)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'username': self.username,
-            'email': self.email,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'is_active': self.is_active,
-            'is_admin': self.is_admin,
-            'created_at': self.created_at.isoformat(),
-            'last_login': self.last_login.isoformat() if self.last_login else None,
-            'linkedin_connected': self.linkedin_connected,
-            'linkedin_profile_id': self.linkedin_profile_id
-        }
-
 class Post(db.Model):
     """LinkedIn post model"""
     __tablename__ = 'posts'

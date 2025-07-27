@@ -4,6 +4,8 @@ from werkzeug.utils import secure_filename
 import PyPDF2
 from gemini_service import summarize_text
 
+# Ensure all API keys and tokens are loaded from environment variables as set in .env
+
 ALLOWED_EXTENSIONS = {'pdf'}
 
 def allowed_file(filename):
