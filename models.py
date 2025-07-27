@@ -2,29 +2,29 @@ from extensions import db
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, JSON, ForeignKey, Float
 from sqlalchemy.orm import relationship
-from werkzeug.security import generate_password_hash, check_password_hash
 import json
 
 class User(db.Model):
-    """User model for authentication and user management"""
+    """User model for single-user LinkedIn automation system"""
     __tablename__ = 'users'
     
     id = Column(Integer, primary_key=True)
-    username = Column(String(80), unique=True, nullable=False)
-    email = Column(String(120), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
+    username = Column(String(80), unique=True, nullable=False, default='default_user')
+    email = Column(String(120), unique=True, nullable=True)
     first_name = Column(String(50))
     last_name = Column(String(50))
     is_active = Column(Boolean, default=True)
-    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login = Column(DateTime)
+    last_activity = Column(DateTime)
     
     # LinkedIn integration
     linkedin_access_token = Column(String(500))
     linkedin_refresh_token = Column(String(500))
     linkedin_token_expires_at = Column(DateTime)
+    
+    # Settings and preferences
+    settings = Column(JSON)  # Store user preferences as JSON
     
     # Relationships
     posts = relationship('Post', backref='user', lazy='dynamic')
@@ -34,13 +34,20 @@ class User(db.Model):
     linkedin_profile = relationship('LinkedInProfile', backref='user', uselist=False)
     action_logs = relationship('ActionLog', backref='user', lazy='dynamic')
 
-    def set_password(self, password):
-        """Set password hash"""
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        """Check password against hash"""
-        return check_password_hash(self.password_hash, password)
+    @classmethod
+    def get_default_user(cls):
+        """Get or create the default user for single-user operation"""
+        user = cls.query.filter_by(username='default_user').first()
+        if not user:
+            user = cls(
+                username='default_user',
+                first_name='LinkedIn',
+                last_name='Agent',
+                is_active=True
+            )
+            db.session.add(user)
+            db.session.commit()
+        return user
 
     def to_dict(self):
         return {
@@ -50,10 +57,10 @@ class User(db.Model):
             'first_name': self.first_name,
             'last_name': self.last_name,
             'is_active': self.is_active,
-            'is_admin': self.is_admin,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'last_activity': self.last_activity.isoformat() if self.last_activity else None,
+            'settings': self.settings or {}
         }
 
 class Post(db.Model):

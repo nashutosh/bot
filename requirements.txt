@@ -33,8 +33,13 @@ email-validator>=2.2.0
 python-dotenv>=1.0.0
 pydantic>=2.5.0
 
-# Authentication and security
+# Security
 cryptography>=41.0.8
+
+# Web scraping and automation
+selenium>=4.15.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
 
 # Task scheduling and automation
 APScheduler>=3.10.4
@@ -49,9 +54,21 @@ sentry-sdk>=1.38.0
 python-dateutil>=2.8.2
 pytz>=2023.3
 click>=8.1.7
+python-slugify>=8.0.0
+validators>=0.22.0
 
 # Development tools
 python-decouple>=3.8
 
 # Task scheduling
 schedule>=1.2.0
+
+# LinkedIn API and social media
+linkedin-api>=2.2.0
+
+# CSV and data handling
+pandas>=2.1.0
+numpy>=1.24.0
+
+# Environment and configuration
+python-multipart>=0.0.6

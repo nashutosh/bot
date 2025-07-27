@@ -15,6 +15,11 @@ logger = logging.getLogger(__name__)
 def register_routes(app):
     """Register all application routes"""
     
+    @app.before_request
+    def load_default_user():
+        """Load the default user for single-user operation"""
+        g.current_user = User.get_default_user()
+    
     @app.route('/')
     def index():
         """Main application page"""
