@@ -546,22 +546,43 @@ async function generateContent() {
 }
 
 function displayGeneratedContent(content) {
-    const previewSection = document.getElementById('content-preview');
-    const contentDisplay = document.getElementById('generated-content');
+    console.log('Displaying content:', content.substring(0, 100) + '...');
     
-    if (contentDisplay) {
-        contentDisplay.textContent = content;
-        previewSection.style.display = 'block';
-        
-        // Show publish options
-        const publishSection = document.getElementById('publish-options');
-        if (publishSection) {
-            publishSection.style.display = 'block';
+    // Find the correct elements
+    const generatedText = document.getElementById('generated-text');
+    const contentPreview = document.getElementById('content-preview');
+    
+    if (generatedText) {
+        generatedText.textContent = content;
+        console.log('Content set in generated-text element');
+    } else {
+        console.error('generated-text element not found');
+        // Try alternative selector
+        const altText = document.querySelector('.content-display');
+        if (altText) {
+            altText.textContent = content;
+            console.log('Content set in alternative element');
         }
+    }
+    
+    if (contentPreview) {
+        contentPreview.style.display = 'block';
+        console.log('Content preview shown');
+    } else {
+        console.error('content-preview element not found');
+    }
+    
+    // Show post button
+    const postBtn = document.getElementById('post-btn');
+    if (postBtn) {
+        postBtn.style.display = 'inline-block';
+        postBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Post to LinkedIn';
     }
 }
 
 async function generateImage(prompt) {
+    console.log('Generating image with prompt:', prompt);
+    
     try {
         const response = await fetch('/api/generate-image', {
             method: 'POST',
@@ -572,17 +593,27 @@ async function generateImage(prompt) {
         });
         
         const data = await response.json();
+        console.log('Image generation response:', data);
         
         if (data.success && data.image_url) {
-            const imageDisplay = document.getElementById('generated-image');
-            if (imageDisplay) {
-                imageDisplay.src = data.image_url;
-                imageDisplay.style.display = 'block';
+            // Find image preview element
+            const imagePreview = document.getElementById('image-preview');
+            const imageElement = imagePreview ? imagePreview.querySelector('img') : null;
+            
+            if (imageElement) {
+                imageElement.src = data.image_url;
+                imagePreview.style.display = 'block';
+                console.log('Image displayed successfully');
+            } else {
+                console.error('Image element not found');
             }
+        } else {
+            console.error('Image generation failed:', data);
         }
         
     } catch (error) {
         console.error('Error generating image:', error);
+        showToast('error', 'Failed to generate image');
     }
 }
 
