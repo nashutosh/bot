@@ -83,20 +83,8 @@ if [ ! -f ".env" ]; then
     fi
 fi
 
-# Check if Redis is running (optional)
-if command -v redis-cli &> /dev/null; then
-    if redis-cli ping &> /dev/null; then
-        print_success "Redis server is running"
-    else
-        print_warning "Redis server is not running. Some features may not work properly."
-        print_status "To start Redis:"
-        print_status "  - macOS: brew services start redis"
-        print_status "  - Ubuntu/Debian: sudo systemctl start redis-server"
-        print_status "  - Manual: redis-server"
-    fi
-else
-    print_warning "Redis not installed. Install Redis for full functionality."
-fi
+# Redis not required - using memory storage for rate limiting
+print_status "Using memory storage for rate limiting (Redis not required)"
 
 # Create upload directories
 print_status "Creating necessary directories..."

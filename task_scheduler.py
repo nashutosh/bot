@@ -6,7 +6,8 @@ import time
 from datetime import datetime, timedelta
 from threading import Thread
 from typing import Dict, List, Any
-from models import Post, MarketingCampaign, AutomationRule, User, db
+from extensions import db
+from models import User, Post, MarketingCampaign, AutomationRule
 from automation_engine import automation_engine
 from linkedin_service import linkedin_service
 from app import create_app

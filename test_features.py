@@ -13,9 +13,9 @@ from datetime import datetime, timedelta
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app import create_app, db
+from app import create_app
+from extensions import db
 from models import User, Post, MarketingCampaign, AutomationRule
-from auth_service import AuthService
 from automation_engine import automation_engine, CampaignConfig, AutoFollowConfig, TargetCategory
 from image_generation_service import image_service
 from task_scheduler import task_scheduler
@@ -39,7 +39,7 @@ class FeatureTester:
                 self.setup_test_environment()
                 
                 # Run tests
-                self.test_user_authentication()
+                self.test_user_management()
                 self.test_content_generation()
                 self.test_image_generation()
                 self.test_post_management()
@@ -67,15 +67,12 @@ class FeatureTester:
         # Create tables
         db.create_all()
         
-        # Create test user
-        self.test_user = User(
-            username='test_user',
-            email='test@example.com',
-            first_name='Test',
-            last_name='User',
-            is_admin=False
-        )
-        self.test_user.set_password('test123')
+        # Get default user for testing
+        self.test_user = User.get_default_user()
+        if not self.test_user.email:
+            self.test_user.email = 'test@example.com'
+            self.test_user.first_name = 'Test'
+            self.test_user.last_name = 'User'
         
         db.session.add(self.test_user)
         db.session.commit()
@@ -103,42 +100,35 @@ class FeatureTester:
         except Exception as e:
             print(f"⚠️  Cleanup warning: {str(e)}")
     
-    def test_user_authentication(self):
-        """Test user authentication system"""
-        print("\n🔐 Testing User Authentication...")
+    def test_user_management(self):
+        """Test user management for single-user operation"""
+        print("\n🔐 Testing User Management...")
         
         try:
-            # Test user creation
-            result = AuthService.create_user(
-                username='auth_test_user',
-                email='auth_test@example.com',
-                password='test123',
-                first_name='Auth',
-                last_name='Test'
-            )
+            # Test default user creation/retrieval
+            user = User.get_default_user()
+            assert user is not None, "Default user creation failed"
+            assert user.username == 'default_user', "Default username incorrect"
+            assert user.is_active == True, "Default user should be active"
             
-            assert result['success'], "User creation failed"
+            # Test user settings
+            user.settings = {'theme': 'dark', 'notifications': True}
+            db.session.commit()
             
-            # Test authentication
-            auth_result = AuthService.authenticate_user('auth_test_user', 'test123')
-            assert auth_result['success'], "User authentication failed"
-            assert 'access_token' in auth_result, "Access token not generated"
-            assert 'refresh_token' in auth_result, "Refresh token not generated"
+            # Retrieve user again and verify settings
+            user_retrieved = User.get_default_user()
+            assert user_retrieved.settings['theme'] == 'dark', "User settings not persisted"
             
-            # Test token validation
-            token_result = AuthService.verify_token(auth_result['access_token'])
-            assert token_result['valid'], "Token validation failed"
+            # Test user dictionary representation
+            user_dict = user.to_dict()
+            assert 'id' in user_dict, "User dict missing id"
+            assert 'username' in user_dict, "User dict missing username"
+            assert 'settings' in user_dict, "User dict missing settings"
             
-            # Cleanup
-            test_user = User.query.filter_by(username='auth_test_user').first()
-            if test_user:
-                db.session.delete(test_user)
-                db.session.commit()
-            
-            self.record_test_result("User Authentication", True, "All authentication tests passed")
+            self.record_test_result("User Management", True, "All user management tests passed")
             
         except Exception as e:
-            self.record_test_result("User Authentication", False, str(e))
+            self.record_test_result("User Management", False, str(e))
     
     def test_content_generation(self):
         """Test AI content generation"""

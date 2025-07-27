@@ -9,30 +9,25 @@ Run this after setting up the application to populate it with example content.
 import os
 import sys
 from datetime import datetime, timedelta
-from werkzeug.security import generate_password_hash
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app import create_app, db
+from app import create_app
+from extensions import db
 from models import User, Post, MarketingCampaign, AutomationRule, UploadedFile
 
 def create_demo_user():
-    """Create a demo user account"""
-    demo_user = User.query.filter_by(username='demo_user').first()
+    """Get or create the default user for demo data"""
+    demo_user = User.get_default_user()
     
-    if not demo_user:
-        demo_user = User(
-            username='demo_user',
-            email='demo@linkedinagent.com',
-            first_name='Demo',
-            last_name='User',
-            is_active=True
-        )
-        demo_user.set_password('demo123')
-        db.session.add(demo_user)
+    # Update user info if needed
+    if not demo_user.email:
+        demo_user.email = 'demo@linkedinagent.com'
+        demo_user.first_name = 'LinkedIn'
+        demo_user.last_name = 'Agent'
         db.session.commit()
-        print("✅ Created demo user (username: demo_user, password: demo123)")
+        print("✅ Updated default user for demo data")
     else:
         print("ℹ️  Demo user already exists")
     
@@ -360,8 +355,8 @@ def main():
         
         print("\n🎉 Demo data creation completed!")
         print("\n📝 Demo Account Details:")
-        print("   Username: demo_user")
-        print("   Password: demo123")
+            print("   Username: default_user")
+    print("   No password required (single user operation)")
         print("   Email: demo@linkedinagent.com")
         print("\n🚀 You can now log in and explore the application with sample data!")
 

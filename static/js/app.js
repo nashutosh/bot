@@ -1,9 +1,7 @@
 // LinkedIn Marketing Agent - Frontend JavaScript
 class LinkedInMarketingAgent {
     constructor() {
-        this.currentUser = null;
-        this.accessToken = null;
-        this.refreshToken = null;
+        this.currentUser = { username: 'default_user', first_name: 'LinkedIn', last_name: 'Agent' };
         this.currentSection = 'dashboard';
         this.generatedImageUrl = null;
         this.activeCampaigns = new Map();
@@ -13,44 +11,15 @@ class LinkedInMarketingAgent {
     }
     
     async init() {
-        // Check if user is already authenticated
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            this.accessToken = token;
-            this.refreshToken = localStorage.getItem('refresh_token');
-            
-            try {
-                const result = await this.apiCall('/api/auth/validate', 'GET');
-                if (result.success) {
-                    this.currentUser = result.user;
-                    this.showApp();
-                    this.loadDashboard();
-                } else {
-                    this.showAuth();
-                }
-            } catch (error) {
-                console.error('Token validation failed:', error);
-                this.showAuth();
-            }
-        } else {
-            this.showAuth();
-        }
-        
+        // No authentication needed - single user operation
+        this.showApp();
+        this.loadDashboard();
         this.setupEventListeners();
         this.initializeCharts();
     }
-    
+
     setupEventListeners() {
-        // Authentication forms
-        document.getElementById('loginFormElement')?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.login();
-        });
-        
-        document.getElementById('registerFormElement')?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.register();
-        });
+        // No authentication forms needed for single user operation
         
         // Content generation form
         document.getElementById('contentGeneratorForm')?.addEventListener('submit', (e) => {
@@ -58,266 +27,145 @@ class LinkedInMarketingAgent {
             this.generateContent();
         });
         
-        // Sidebar navigation
+        // Image generation form
+        document.getElementById('imageGeneratorForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.generateImage();
+        });
+        
+        // Post form
+        document.getElementById('postForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.createPost();
+        });
+        
+        // File upload
+        document.getElementById('fileUpload')?.addEventListener('change', (e) => {
+            this.handleFileUpload(e);
+        });
+        
+        // Campaign form
+        document.getElementById('campaignForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.createCampaign();
+        });
+        
+        // Automation form
+        document.getElementById('automationForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.createAutomationRule();
+        });
+        
+        // Navigation
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                const href = link.getAttribute('onclick');
-                if (href) {
-                    const section = href.match(/showSection\('([^']+)'\)/);
-                    if (section) {
-                        this.showSection(section[1]);
-                    }
+                const section = link.getAttribute('data-section');
+                if (section) {
+                    this.showSection(section);
                 }
             });
         });
         
-        // User menu toggle
+        // User menu
         document.getElementById('userMenuButton')?.addEventListener('click', () => {
             const dropdown = document.getElementById('userDropdown');
             dropdown.classList.toggle('hidden');
         });
         
-        // Sidebar toggle for mobile
-        document.getElementById('sidebarToggle')?.addEventListener('click', () => {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('-translate-x-full');
-        });
-        
-        // File upload handling
-        this.setupFileUpload();
-        
-        // Advanced automation event listeners
-        this.setupAdvancedAutomation();
-    }
-    
-    setupAdvancedAutomation() {
-        // Campaign launch form
-        const campaignForm = document.getElementById('campaignLaunchForm');
-        if (campaignForm) {
-            campaignForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.launchAutomatedCampaign();
-            });
-        }
-        
-        // Auto-follow setup form
-        const autoFollowForm = document.getElementById('autoFollowForm');
-        if (autoFollowForm) {
-            autoFollowForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.setupAutoFollow();
-            });
-        }
-        
-        // Engagement optimization buttons
-        document.getElementById('optimizeEngagementBtn')?.addEventListener('click', () => {
-            this.optimizeEngagement();
-        });
-        
-        document.getElementById('boostConversationsBtn')?.addEventListener('click', () => {
-            this.boostConversations();
-        });
-    }
-    
-    setupFileUpload() {
-        const uploadZone = document.getElementById('uploadZone');
-        const fileInput = document.getElementById('fileInput');
-        
-        if (!uploadZone || !fileInput) return;
-        
-        // Click to browse
-        uploadZone.addEventListener('click', () => {
-            fileInput.click();
-        });
-        
-        // Drag and drop
-        uploadZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadZone.classList.add('dragover');
-        });
-        
-        uploadZone.addEventListener('dragleave', () => {
-            uploadZone.classList.remove('dragover');
-        });
-        
-        uploadZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-            
-            const files = Array.from(e.dataTransfer.files);
-            this.handleFileUpload(files);
-        });
-        
-        // File input change
-        fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            this.handleFileUpload(files);
-        });
-    }
-    
-    async handleFileUpload(files) {
-        if (files.length === 0) return;
-        
-        const uploadProgress = document.getElementById('uploadProgress');
-        const progressBar = document.getElementById('progressBar');
-        const uploadPercent = document.getElementById('uploadPercent');
-        
-        uploadProgress.classList.remove('hidden');
-        
-        for (const file of files) {
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                // Simulate progress (in real implementation, you'd track actual progress)
-                let progress = 0;
-                const progressInterval = setInterval(() => {
-                    progress += 10;
-                    progressBar.style.width = `${progress}%`;
-                    uploadPercent.textContent = `${progress}%`;
-                    
-                    if (progress >= 100) {
-                        clearInterval(progressInterval);
-                        setTimeout(() => {
-                            uploadProgress.classList.add('hidden');
-                            this.showNotification('File uploaded successfully!', 'success');
-                        }, 500);
-                    }
-                }, 100);
-                
-                // Make actual upload request
-                const response = await fetch('/api/upload-pdf', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.accessToken}`
-                    },
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (!result.success) {
-                    clearInterval(progressInterval);
-                    uploadProgress.classList.add('hidden');
-                    this.showNotification(result.error || 'Upload failed', 'error');
-                }
-                
-            } catch (error) {
-                console.error('Upload error:', error);
-                uploadProgress.classList.add('hidden');
-                this.showNotification('Upload failed', 'error');
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#userMenuButton')) {
+                document.getElementById('userDropdown')?.classList.add('hidden');
             }
-        }
-    }
-    
-    async login() {
-        const username = document.getElementById('loginUsername').value;
-        const password = document.getElementById('loginPassword').value;
+        });
         
-        if (!username || !password) {
-            this.showNotification('Please enter both username and password', 'error');
-            return;
-        }
+        // LinkedIn auth button
+        document.getElementById('linkedinAuthBtn')?.addEventListener('click', () => {
+            this.connectLinkedIn();
+        });
         
-        this.showLoading('Signing in...');
-        
-        try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                this.accessToken = result.access_token;
-                this.refreshToken = result.refresh_token;
-                this.currentUser = result.user;
-                
-                localStorage.setItem('access_token', this.accessToken);
-                localStorage.setItem('refresh_token', this.refreshToken);
-                
-                this.hideLoading();
-                this.showApp();
-                this.loadDashboard();
-                this.showNotification('Welcome back!', 'success');
-            } else {
-                this.hideLoading();
-                this.showNotification(result.error || 'Login failed', 'error');
+        // Generate variations buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('generate-variations-btn')) {
+                const postId = e.target.getAttribute('data-post-id');
+                this.generateVariations(postId);
             }
-        } catch (error) {
-            this.hideLoading();
-            this.showNotification('Network error. Please try again.', 'error');
-            console.error('Login error:', error);
-        }
-    }
-    
-    async register() {
-        const username = document.getElementById('registerUsername').value;
-        const email = document.getElementById('registerEmail').value;
-        const password = document.getElementById('registerPassword').value;
-        const firstName = document.getElementById('registerFirstName').value;
-        const lastName = document.getElementById('registerLastName').value;
+        });
         
-        if (!username || !email || !password) {
-            this.showNotification('Please fill in all required fields', 'error');
-            return;
-        }
-        
-        this.showLoading('Creating account...');
-        
-        try {
-            const response = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    username,
-                    email,
-                    password,
-                    first_name: firstName,
-                    last_name: lastName
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                this.accessToken = result.access_token;
-                this.refreshToken = result.refresh_token;
-                this.currentUser = result.user;
-                
-                localStorage.setItem('access_token', this.accessToken);
-                localStorage.setItem('refresh_token', this.refreshToken);
-                
-                this.hideLoading();
-                this.showApp();
-                this.loadDashboard();
-                this.showNotification('Account created successfully!', 'success');
-            } else {
-                this.hideLoading();
-                this.showNotification(result.error || 'Registration failed', 'error');
+        // Auto-generate buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('auto-generate-btn')) {
+                const campaignId = e.target.getAttribute('data-campaign-id');
+                this.autoGenerateContent(campaignId);
             }
-        } catch (error) {
-            this.hideLoading();
-            this.showNotification('Network error. Please try again.', 'error');
-            console.error('Registration error:', error);
-        }
+        });
+        
+        // Delete buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-btn')) {
+                const type = e.target.getAttribute('data-type');
+                const id = e.target.getAttribute('data-id');
+                this.deleteItem(type, id);
+            }
+        });
+        
+        // Edit buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('edit-btn')) {
+                const type = e.target.getAttribute('data-type');
+                const id = e.target.getAttribute('data-id');
+                this.editItem(type, id);
+            }
+        });
+        
+        // Publish buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('publish-btn')) {
+                const postId = e.target.getAttribute('data-post-id');
+                this.publishPost(postId);
+            }
+        });
+        
+        // Schedule buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('schedule-btn')) {
+                const postId = e.target.getAttribute('data-post-id');
+                this.schedulePost(postId);
+            }
+        });
+        
+        // Pause/Resume automation buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('toggle-automation-btn')) {
+                const ruleId = e.target.getAttribute('data-rule-id');
+                this.toggleAutomationRule(ruleId);
+            }
+        });
+        
+        // Campaign status buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('toggle-campaign-btn')) {
+                const campaignId = e.target.getAttribute('data-campaign-id');
+                this.toggleCampaign(campaignId);
+            }
+        });
+        
+        // Refresh buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('refresh-btn')) {
+                const section = e.target.getAttribute('data-section');
+                this.refreshSection(section);
+            }
+        });
     }
-    
+
+    // Authentication methods removed - single user operation
+
     async apiCall(endpoint, method = 'GET', data = null) {
         const headers = {
             'Content-Type': 'application/json'
         };
-        
-        if (this.accessToken) {
-            headers['Authorization'] = `Bearer ${this.accessToken}`;
-        }
         
         const config = {
             method,
@@ -330,73 +178,15 @@ class LinkedInMarketingAgent {
         
         try {
             const response = await fetch(endpoint, config);
-            
-            if (response.status === 401 && this.refreshToken) {
-                // Try to refresh token
-                const refreshResult = await this.refreshAccessToken();
-                if (refreshResult) {
-                    // Retry original request
-                    headers['Authorization'] = `Bearer ${this.accessToken}`;
-                    config.headers = headers;
-                    const retryResponse = await fetch(endpoint, config);
-                    return await retryResponse.json();
-                } else {
-                    this.logout();
-                    return { success: false, error: 'Authentication expired' };
-                }
-            }
-            
             return await response.json();
         } catch (error) {
             console.error('API call error:', error);
-            throw error;
+            return { success: false, error: 'Network error' };
         }
     }
-    
-    async refreshAccessToken() {
-        try {
-            const response = await fetch('/api/auth/refresh', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ refresh_token: this.refreshToken })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                this.accessToken = result.access_token;
-                localStorage.setItem('access_token', this.accessToken);
-                return true;
-            }
-            
-            return false;
-        } catch (error) {
-            console.error('Token refresh error:', error);
-            return false;
-        }
-    }
-    
-    logout() {
-        this.accessToken = null;
-        this.refreshToken = null;
-        this.currentUser = null;
-        
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        
-        this.showAuth();
-        this.showNotification('Logged out successfully', 'info');
-    }
-    
-    showAuth() {
-        document.getElementById('authModal').classList.remove('hidden');
-        document.getElementById('appContainer').classList.add('hidden');
-    }
-    
+
     showApp() {
-        document.getElementById('authModal').classList.add('hidden');
+        // Show the main application interface
         document.getElementById('appContainer').classList.remove('hidden');
         
         if (this.currentUser) {

@@ -1,14 +1,10 @@
 import os
 import logging
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config_dict
 from dotenv import load_dotenv
+from extensions import db, cors, limiter
 
 load_dotenv()
 
@@ -18,17 +14,6 @@ logging.basicConfig(
     format='%(asctime)s %(levelname)s %(name)s: %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-class Base(DeclarativeBase):
-    pass
-
-# Initialize extensions
-db = SQLAlchemy(model_class=Base)
-cors = CORS()
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
-)
 
 def create_app(config_name=None):
     """Application factory pattern"""
@@ -57,7 +42,7 @@ def create_app(config_name=None):
     # Register blueprints/routes
     with app.app_context():
         # Import models to ensure they're registered
-        from models import Post, UploadedFile, AutomationRule, MarketingCampaign, LinkedInProfile
+        from models import User, Post, UploadedFile, AutomationRule, MarketingCampaign, LinkedInProfile
         
         # Create all database tables
         db.create_all()
