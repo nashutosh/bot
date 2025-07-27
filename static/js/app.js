@@ -34,7 +34,7 @@ function bindEventListeners() {
 
     // Existing listeners
     document.getElementById('generate-btn')?.addEventListener('click', generateContent);
-
+    document.getElementById('post-btn')?.addEventListener('click', publishPost);
     document.getElementById('view-all-posts-btn')?.addEventListener('click', togglePostsList);
     
     // Image generation toggle
@@ -721,25 +721,43 @@ window.generateContent = generateContent;
 window.publishPost = publishPost;
 
 async function publishPost() {
-    const content = document.getElementById('generated-content').textContent;
-    const scheduleTime = document.getElementById('schedule-time').value;
-    const imageElement = document.getElementById('generated-image');
-    const imageUrl = imageElement && imageElement.style.display !== 'none' ? imageElement.src : null;
+    // Get content from the correct element
+    const generatedTextElement = document.getElementById('generated-text');
+    const content = generatedTextElement ? generatedTextElement.textContent : null;
     
-    if (!content) {
-        showToast('error', 'No content to publish');
+    // Get image if it exists
+    const imagePreview = document.getElementById('image-preview');
+    const imageElement = imagePreview ? imagePreview.querySelector('img') : null;
+    const imageUrl = imageElement && imagePreview.style.display !== 'none' ? imageElement.src : null;
+    
+    if (!content || content.trim() === 'Generated content will appear here...') {
+        showToast('error', 'No content to publish. Please generate content first.');
         return;
     }
     
     try {
+        // First check LinkedIn authentication
+        const statusResponse = await fetch('/api/linkedin-status');
+        const statusData = await statusResponse.json();
+        
+        if (!statusData.authenticated) {
+            showToast('warning', 'Please connect to LinkedIn first to post');
+            // Show LinkedIn connection prompt
+            const statusDiv = document.getElementById('linkedin-status');
+            if (statusDiv) statusDiv.style.display = 'block';
+            return;
+        }
+        
+        showToast('info', 'Publishing post to LinkedIn...');
+        
         const response = await fetch('/api/create-post', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                content,
-                schedule_time: scheduleTime || null,
+                content: content.trim(),
+                schedule_time: null, // Immediate posting
                 image_url: imageUrl,
                 post_type: imageUrl ? 'image' : 'text'
             })
@@ -748,27 +766,31 @@ async function publishPost() {
         const data = await response.json();
         
         if (data.success) {
-            showToast('success', scheduleTime ? 'Post scheduled successfully!' : 'Post published successfully!');
+            if (data.status === 'published') {
+                showToast('success', 'Post published successfully to LinkedIn!');
+            } else if (data.status === 'failed') {
+                showToast('error', data.error_message || 'Failed to publish to LinkedIn');
+            } else {
+                showToast('success', 'Post created successfully!');
+            }
             
             // Clear the form
             const contentPrompt = document.getElementById('content-prompt');
             const contentPreview = document.getElementById('content-preview');
-            const publishOptions = document.getElementById('publish-options');
             
             if (contentPrompt) contentPrompt.value = '';
             if (contentPreview) contentPreview.style.display = 'none';
-            if (publishOptions) publishOptions.style.display = 'none';
             
             // Refresh data
             fetchStats();
             fetchPosts();
         } else {
-            showToast('error', data.error || 'Failed to publish post');
+            showToast('error', data.error || 'Failed to create post');
         }
         
     } catch (error) {
         console.error('Error publishing post:', error);
-        showToast('error', 'Error publishing post');
+        showToast('error', 'Error publishing post: ' + error.message);
     }
 }
 
