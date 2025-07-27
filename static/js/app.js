@@ -26,7 +26,7 @@ function initializeApp() {
 function bindEventListeners() {
     // Existing listeners
     document.getElementById('generate-btn')?.addEventListener('click', generateContent);
-    document.getElementById('upload-pdf-btn')?.addEventListener('click', triggerFileUpload);
+    document.getElementById('upload-pdf-btn')?.addEventListener('click', showPDFUploadModal);
     document.getElementById('view-all-posts-btn')?.addEventListener('click', togglePostsList);
     
     // New automation listeners
@@ -47,8 +47,23 @@ function bindEventListeners() {
     document.getElementById('save-automation')?.addEventListener('click', saveAutomationSettings);
     document.getElementById('cancel-automation')?.addEventListener('click', closeModal);
     
-    // File upload handler
+    // PDF upload modal listeners
+    document.getElementById('cancel-upload')?.addEventListener('click', closePDFModal);
+    document.getElementById('cancel-pdf-upload')?.addEventListener('click', closePDFModal);
+    document.getElementById('process-pdf')?.addEventListener('click', processPDFFile);
+    document.getElementById('remove-file')?.addEventListener('click', removeSelectedFile);
+    
+    // File upload handlers
     document.getElementById('pdf-upload')?.addEventListener('change', handleFileUpload);
+    document.getElementById('file-upload')?.addEventListener('change', handleFileUpload);
+    
+    // Drag and drop for PDF upload
+    const uploadArea = document.getElementById('upload-area');
+    if (uploadArea) {
+        uploadArea.addEventListener('click', () => document.getElementById('file-upload')?.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('drop', handleFileDrop);
+    }
 }
 
 function loadInitialData() {
@@ -337,6 +352,114 @@ function closeModal() {
     document.getElementById('campaign-form')?.reset();
 }
 
+function showPDFUploadModal() {
+    document.getElementById('pdf-modal').style.display = 'flex';
+}
+
+function closePDFModal() {
+    document.getElementById('pdf-modal').style.display = 'none';
+    
+    // Reset upload state
+    document.getElementById('upload-area').style.display = 'block';
+    document.getElementById('uploaded-file').style.display = 'none';
+    document.getElementById('file-upload').value = '';
+    document.getElementById('pdf-upload').value = '';
+}
+
+function removeSelectedFile() {
+    document.getElementById('upload-area').style.display = 'block';
+    document.getElementById('uploaded-file').style.display = 'none';
+    document.getElementById('file-upload').value = '';
+    document.getElementById('pdf-upload').value = '';
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.target.classList.add('dragover');
+}
+
+function handleFileDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.target.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        const file = files[0];
+        if (file.type === 'application/pdf') {
+            displaySelectedFile(file);
+        } else {
+            showToast('error', 'Please select a PDF file');
+        }
+    }
+}
+
+function displaySelectedFile(file) {
+    const uploadArea = document.getElementById('upload-area');
+    const uploadedFile = document.getElementById('uploaded-file');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+    
+    if (uploadArea && uploadedFile && fileName && fileSize) {
+        uploadArea.style.display = 'none';
+        uploadedFile.style.display = 'block';
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+async function processPDFFile() {
+    const fileInput = document.getElementById('file-upload');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showToast('error', 'Please select a PDF file first');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const btn = document.getElementById('process-pdf');
+    const originalText = btn.innerHTML;
+    
+    try {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+        btn.disabled = true;
+        
+        const response = await fetch('/api/upload-pdf', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', 'PDF processed successfully! You can now use it for content generation.');
+            closePDFModal();
+            fetchFiles();
+        } else {
+            showToast('error', data.error || 'Failed to process PDF');
+        }
+        
+    } catch (error) {
+        console.error('Error processing PDF:', error);
+        showToast('error', 'Error processing PDF file');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
 // Existing Functions (Updated)
 async function generateContent() {
     const prompt = document.getElementById('content-prompt').value;
@@ -492,7 +615,7 @@ function togglePostsList() {
 }
 
 function triggerFileUpload() {
-    document.getElementById('pdf-upload').click();
+    showPDFUploadModal();
 }
 
 async function handleFileUpload(event) {
@@ -504,28 +627,8 @@ async function handleFileUpload(event) {
         return;
     }
     
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    try {
-        const response = await fetch('/api/upload-pdf', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('success', 'PDF uploaded and processed successfully!');
-            fetchFiles();
-        } else {
-            showToast('error', data.error || 'Failed to upload PDF');
-        }
-        
-    } catch (error) {
-        console.error('Error uploading file:', error);
-        showToast('error', 'Error uploading file');
-    }
+    // Display the selected file in the modal
+    displaySelectedFile(file);
 }
 
 function showToast(type, message) {

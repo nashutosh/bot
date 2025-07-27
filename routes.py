@@ -332,13 +332,19 @@ def create_marketing_campaign():
         pdf_id = data.get('pdf_id')
         target_keywords = data.get('target_keywords', [])
         
-        if not campaign_name or not pdf_id:
-            return jsonify({'success': False, 'error': 'Campaign name and PDF ID required'}), 400
+        if not campaign_name:
+            return jsonify({'success': False, 'error': 'Campaign name required'}), 400
         
-        # Get PDF content
-        pdf_file = UploadedFile.query.get(pdf_id)
-        if not pdf_file:
-            return jsonify({'success': False, 'error': 'PDF not found'}), 404
+        # Get PDF content if provided
+        pdf_content = ""
+        if pdf_id:
+            pdf_file = UploadedFile.query.get(pdf_id)
+            if not pdf_file:
+                return jsonify({'success': False, 'error': 'PDF not found'}), 404
+            pdf_content = pdf_file.extracted_text or pdf_file.summary or ""
+        else:
+            # Use product info for content generation
+            pdf_content = f"Product: {product_info.get('name', '')}. Keywords: {', '.join(target_keywords)}"
         
         # Create marketing campaign
         campaign = MarketingCampaign()
@@ -353,7 +359,7 @@ def create_marketing_campaign():
         
         # Schedule marketing posts
         result = linkedin_automation.schedule_marketing_campaign(
-            pdf_file.extracted_text or pdf_file.summary, 
+            pdf_content, 
             product_info
         )
         
