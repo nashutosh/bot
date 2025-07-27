@@ -1,8 +1,13 @@
 import json
 import logging
 import os
-from google import genai
-from google.genai import types
+try:
+    from google import genai
+    from google.genai import types
+except ImportError:
+    print("Warning: google-genai not properly installed")
+    genai = None
+    types = None
 
 # Initialize Gemini client
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", "default_key"))
@@ -18,6 +23,8 @@ def generate_linkedin_post(prompt: str) -> str:
         - Stay within 1300 characters for optimal visibility
         - Include a clear call-to-action when appropriate
         
+        IMPORTANT: Return ONLY the LinkedIn post content. Do not include any introductory text like "Here's your post" or "Here's a LinkedIn post". Start directly with the post content.
+        
         Generate content based on the user's prompt."""
         
         full_prompt = f"{system_prompt}\n\nUser request: {prompt}"
@@ -28,7 +35,10 @@ def generate_linkedin_post(prompt: str) -> str:
         )
         
         if response.text:
-            return response.text.strip()
+            content = response.text.strip()
+            # Remove any introductory phrases that might slip through
+            content = content.replace("Here's your LinkedIn post:", "").replace("Here's a LinkedIn post about", "").replace("Here's your post:", "").replace("Here is your post:", "").replace("---", "").strip()
+            return content
         else:
             raise Exception("Empty response from Gemini")
             

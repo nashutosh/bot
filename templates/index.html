@@ -279,11 +279,7 @@
                             <i class="fas fa-bullhorn me-1"></i>Campaigns
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-page="analytics">
-                            <i class="fas fa-analytics me-1"></i>Analytics
-                        </a>
-                    </li>
+
                 </ul>
             </div>
         </div>
@@ -559,48 +555,147 @@
     </div>
 
     <!-- PDF Upload Modal -->
-    <div id="pdf-modal" class="modal-overlay">
+    <div id="pdf-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="fas fa-file-pdf me-2"></i>
                     Upload PDF for Content Inspiration
                 </h5>
-                <button type="button" class="close-modal" aria-label="Close">
+                <button type="button" class="close-modal" onclick="closePDFModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <!-- Upload Area -->
-                <div id="upload-area" class="upload-area">
-                    <div class="upload-content">
-                        <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
-                        <h6>Drag & drop your PDF here</h6>
-                        <p class="text-muted">or click to browse files</p>
-                        <small class="text-muted">Maximum file size: 16MB</small>
+                <form id="pdf-upload-form" enctype="multipart/form-data">
+                    <!-- Upload Area -->
+                    <div id="upload-area" class="upload-area" onclick="document.getElementById('file-upload').click()">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                        <h5>Drop your PDF here or click to browse</h5>
+                        <p class="text-muted">Supported formats: PDF (Max size: 16MB)</p>
                     </div>
-                    <input type="file" id="file-upload" accept=".pdf" style="display: none;">
-                </div>
-
-                <!-- Uploaded File Info (hidden by default) -->
-                <div id="uploaded-file" class="uploaded-file" style="display: none;">
-                    <div class="file-info">
-                        <i class="fas fa-file-pdf fa-2x text-danger"></i>
-                        <div class="file-details">
-                            <div id="file-name" class="file-name"></div>
-                            <div id="file-size" class="file-size text-muted"></div>
+                    
+                    <!-- Hidden File Input -->
+                    <input type="file" id="file-upload" name="file" accept=".pdf" style="display: none;">
+                    
+                    <!-- Uploaded File Display -->
+                    <div id="uploaded-file" class="uploaded-file" style="display: none;">
+                        <div class="file-info">
+                            <i class="fas fa-file-pdf fa-2x text-danger me-3"></i>
+                            <div class="flex-grow-1">
+                                <h6 id="file-name" class="mb-1">filename.pdf</h6>
+                                <small id="file-size" class="text-muted">0 KB</small>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeSelectedFile()">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
-                        <button type="button" id="remove-file" class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                    </div>
+                    
+                    <!-- Upload Progress -->
+                    <div id="upload-progress" class="mt-3" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">Uploading and processing...</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closePDFModal()">Cancel</button>
+                <button type="button" id="process-pdf-btn" class="btn btn-linkedin" onclick="processPDF()">
+                    <i class="fas fa-magic me-1"></i>
+                    Process PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Marketing Campaign Modal -->
+    <div id="campaign-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-bullhorn me-2"></i>
+                    Create Marketing Campaign
+                </h5>
+                <button type="button" class="close-modal" onclick="closeCampaignModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="campaign-form">
+                    <div class="mb-3">
+                        <label for="campaign-name" class="form-label">Campaign Name</label>
+                        <input type="text" id="campaign-name" class="form-control" placeholder="e.g., Product Launch 2025" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="product-name" class="form-label">Product/Service Name</label>
+                        <input type="text" id="product-name" class="form-control" placeholder="e.g., AI Assistant Pro" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="target-keywords" class="form-label">Target Keywords (comma-separated)</label>
+                        <input type="text" id="target-keywords" class="form-control" placeholder="AI, automation, productivity, business">
+                    </div>
+                    <div class="mb-3">
+                        <label for="pdf-select" class="form-label">Source PDF (optional)</label>
+                        <select id="pdf-select" class="form-select">
+                            <option value="">Select PDF for content inspiration</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCampaignModal()">Cancel</button>
+                <button type="button" id="create-campaign" class="btn btn-primary" onclick="createMarketingCampaign()">
+                    <i class="fas fa-rocket me-1"></i>
+                    Launch Campaign
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Automation Settings Modal -->
+    <div id="automation-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-robot me-2"></i>
+                    Automation Settings
+                </h5>
+                <button type="button" class="close-modal" onclick="closeAutomationModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <h6>Auto-Engagement Keywords</h6>
+                    <input type="text" id="engagement-keywords" class="form-control" placeholder="AI, machine learning, productivity">
+                    <small class="form-text text-muted">Posts with these keywords will be automatically liked and commented on</small>
+                </div>
+                <div class="mb-3">
+                    <h6>Connection Message Template</h6>
+                    <textarea id="connection-message" class="form-control" rows="3" placeholder="Hi, I'd love to connect and share insights about AI and technology."></textarea>
+                </div>
+                <div class="mb-3">
+                    <h6>Daily Limits</h6>
+                    <div class="row">
+                        <div class="col-6">
+                            <label>Connections per day</label>
+                            <input type="number" id="daily-connections" class="form-control" value="50" min="1" max="100">
+                        </div>
+                        <div class="col-6">
+                            <label>Engagements per day</label>
+                            <input type="number" id="daily-engagements" class="form-control" value="100" min="1" max="300">
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" id="cancel-upload" class="btn btn-secondary">Cancel</button>
-                <button type="button" id="process-pdf" class="btn btn-primary">
-                    <i class="fas fa-cogs me-1"></i>
-                    Process PDF
+                <button type="button" class="btn btn-secondary" onclick="closeAutomationModal()">Cancel</button>
+                <button type="button" id="save-automation" class="btn btn-primary" onclick="saveAutomationSettings()">
+                    <i class="fas fa-save me-1"></i>
+                    Save Settings
                 </button>
             </div>
         </div>

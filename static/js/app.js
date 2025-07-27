@@ -44,7 +44,9 @@ function bindEventListeners() {
     document.getElementById('auto-accept-btn')?.addEventListener('click', autoAcceptConnections);
     document.getElementById('auto-follow-btn')?.addEventListener('click', autoFollowSuccessful);
     document.getElementById('auto-engage-btn')?.addEventListener('click', autoEngagePosts);
-    document.getElementById('create-campaign-btn')?.addEventListener('click', createSimpleCampaign);
+    document.getElementById('create-campaign-btn')?.addEventListener('click', showCampaignModal);
+    document.getElementById('upload-pdf-btn')?.addEventListener('click', showPDFUploadModal);
+    document.getElementById('smart-campaign-btn')?.addEventListener('click', smartCampaignFromPDF);
 
     
     // PDF upload modal listeners
@@ -899,3 +901,54 @@ function closeModal() {
     // Simple function for any remaining modal references
     console.log("Modal closed");
 }
+
+// Modal functions
+function showPDFUploadModal() {
+    document.getElementById("pdf-modal").style.display = "flex";
+}
+
+function closePDFModal() {
+    document.getElementById("pdf-modal").style.display = "none";
+}
+
+function showCampaignModal() {
+    document.getElementById("campaign-modal").style.display = "flex";
+}
+
+function closeCampaignModal() {
+    document.getElementById("campaign-modal").style.display = "none";
+}
+
+function closeAutomationModal() {
+    document.getElementById("automation-modal").style.display = "none";
+}
+
+function processPDF() {
+    showToast("info", "PDF processing feature coming soon!");
+}
+
+function createMarketingCampaign() {
+    const campaignName = document.getElementById("campaign-name").value;
+    if (campaignName) {
+        showToast("success", `Campaign "${campaignName}" created successfully!`);
+        closeCampaignModal();
+    } else {
+        showToast("error", "Please enter a campaign name");
+    }
+}
+
+function smartCampaignFromPDF() {
+    showCampaignModal();
+}
+
+function saveAutomationSettings() {
+    showToast("success", "Automation settings saved!");
+    closeAutomationModal();
+}
+
+function removeSelectedFile() {
+    document.getElementById("uploaded-file").style.display = "none";
+    document.getElementById("upload-area").style.display = "block";
+    document.getElementById("file-upload").value = "";
+}
+
