@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime
-from flask import render_template, request, jsonify, current_app
+from flask import render_template, request, jsonify, current_app, session, redirect
 from app import app, db
 from models import Post, UploadedFile, AutomationRule, MarketingCampaign, LinkedInProfile
 from gemini_service import generate_linkedin_post, generate_image_with_gemini
@@ -486,3 +486,39 @@ def not_found(error):
 @app.errorhandler(500)
 def internal_error(error):
     return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+# LinkedIn OAuth Authentication Routes
+@app.route("/auth/linkedin")
+def linkedin_auth():
+    """Redirect to LinkedIn OAuth"""
+    auth_url = linkedin_service.get_authorization_url()
+    return redirect(auth_url)
+
+@app.route("/auth/linkedin/callback")
+def linkedin_callback():
+    """Handle LinkedIn OAuth callback"""
+    code = request.args.get("code")
+    if not code:
+        return jsonify({"error": "No authorization code received"}), 400
+    
+    result = linkedin_service.exchange_code_for_token(code)
+    if result["success"]:
+        session["linkedin_token"] = result["token"]
+        linkedin_service.access_token = result["token"]
+        return redirect("/?auth=success")
+    else:
+        return redirect("/?auth=error")
+
+@app.route("/api/linkedin-status")
+def linkedin_status():
+    """Check LinkedIn authentication status"""
+    token = session.get("linkedin_token")
+    if token:
+        linkedin_service.access_token = token
+        return jsonify({"authenticated": True})
+    else:
+        return jsonify({
+            "authenticated": False,
+            "auth_url": linkedin_service.get_authorization_url()
+        })
+

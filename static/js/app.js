@@ -570,6 +570,9 @@ function displayGeneratedContent(content) {
     if (contentPreview) {
         contentPreview.style.display = 'block';
         console.log('Content preview shown');
+        
+        // Show LinkedIn auth status if needed
+        checkLinkedInAuth();
     } else {
         console.error('content-preview element not found');
     }
@@ -950,5 +953,59 @@ function removeSelectedFile() {
     document.getElementById("uploaded-file").style.display = "none";
     document.getElementById("upload-area").style.display = "block";
     document.getElementById("file-upload").value = "";
+}
+
+
+// Check LinkedIn authentication status on page load
+async function checkLinkedInAuth() {
+    try {
+        const response = await fetch("/api/linkedin-status");
+        const data = await response.json();
+        
+        const statusDiv = document.getElementById("linkedin-status");
+        const statusMessage = document.getElementById("status-message");
+        const connectBtn = document.getElementById("connect-linkedin-btn");
+        
+        if (statusDiv && statusMessage && connectBtn) {
+            if (data.authenticated) {
+                statusDiv.style.display = "none";
+            } else {
+                statusDiv.style.display = "block";
+                connectBtn.onclick = () => window.location.href = "/auth/linkedin";
+            }
+        }
+    } catch (error) {
+        console.error("Error checking LinkedIn auth:", error);
+    }
+}
+
+// Handle authentication success/error from URL params
+function handleAuthCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const authStatus = urlParams.get("auth");
+    
+    if (authStatus === "success") {
+        showToast("success", "LinkedIn connected successfully!");
+        checkLinkedInAuth();
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (authStatus === "error") {
+        showToast("error", "LinkedIn authentication failed. Please try again.");
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
+
+// Initialize LinkedIn auth checking
+function initializeLinkedInAuth() {
+    handleAuthCallback();
+    checkLinkedInAuth();
+}
+
+// Call initialization when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeLinkedInAuth);
+} else {
+    initializeLinkedInAuth();
 }
 

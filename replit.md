@@ -90,7 +90,13 @@ Preferred communication style: Simple, everyday language.
 
 ### AI Services
 - **Google Gemini AI**: Content generation and text summarization
-- **OpenAI API**: Content enhancement and image generation (GPT-4o, DALL-E 3)
+- **Stability AI**: Professional image generation with SDXL model
+
+### LinkedIn Integration
+- **LinkedIn API**: Real posting functionality with OAuth2 authentication
+- **Client ID**: 86rn2qqk775fwu
+- **Client Secret**: WPL_AP1.9YvV50e1umGE236w.ChAN4g== (configured)
+- **OAuth Scopes**: w_member_social, r_liteprofile, r_emailaddress
 
 ### File Processing
 - **PyPDF2**: PDF text extraction capabilities
