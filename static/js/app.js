@@ -37,6 +37,13 @@ function bindEventListeners() {
     document.getElementById('upload-pdf-btn')?.addEventListener('click', showPDFUploadModal);
     document.getElementById('view-all-posts-btn')?.addEventListener('click', togglePostsList);
     
+    // PDF upload listeners
+    document.getElementById('file-upload')?.addEventListener('change', handleFileSelect);
+    document.getElementById('process-pdf-btn')?.addEventListener('click', processPDF);
+    
+    // Image generation toggle
+    document.getElementById('enable-image-gen')?.addEventListener('change', toggleImagePrompt);
+    
     // New automation listeners
     document.getElementById('auto-accept-btn')?.addEventListener('click', autoAcceptConnections);
     document.getElementById('auto-follow-btn')?.addEventListener('click', autoFollowSuccessful);
@@ -361,24 +368,41 @@ function closeModal() {
 }
 
 function showPDFUploadModal() {
-    document.getElementById('pdf-modal').style.display = 'flex';
+    const pdfModal = document.getElementById('pdf-modal');
+    if (pdfModal) {
+        pdfModal.style.display = 'flex';
+    } else {
+        console.error('PDF modal not found');
+        showToast('error', 'PDF upload modal not found');
+    }
 }
 
 function closePDFModal() {
-    document.getElementById('pdf-modal').style.display = 'none';
+    const pdfModal = document.getElementById('pdf-modal');
+    if (pdfModal) pdfModal.style.display = 'none';
     
     // Reset upload state
-    document.getElementById('upload-area').style.display = 'block';
-    document.getElementById('uploaded-file').style.display = 'none';
-    document.getElementById('file-upload').value = '';
-    document.getElementById('pdf-upload').value = '';
+    const uploadArea = document.getElementById('upload-area');
+    const uploadedFile = document.getElementById('uploaded-file');
+    const fileUpload = document.getElementById('file-upload');
+    const pdfUpload = document.getElementById('pdf-upload');
+    
+    if (uploadArea) uploadArea.style.display = 'block';
+    if (uploadedFile) uploadedFile.style.display = 'none';
+    if (fileUpload) fileUpload.value = '';
+    if (pdfUpload) pdfUpload.value = '';
 }
 
 function removeSelectedFile() {
-    document.getElementById('upload-area').style.display = 'block';
-    document.getElementById('uploaded-file').style.display = 'none';
-    document.getElementById('file-upload').value = '';
-    document.getElementById('pdf-upload').value = '';
+    const uploadArea = document.getElementById('upload-area');
+    const uploadedFile = document.getElementById('uploaded-file');
+    const fileUpload = document.getElementById('file-upload');
+    const pdfUpload = document.getElementById('pdf-upload');
+    
+    if (uploadArea) uploadArea.style.display = 'block';
+    if (uploadedFile) uploadedFile.style.display = 'none';
+    if (fileUpload) fileUpload.value = '';
+    if (pdfUpload) pdfUpload.value = '';
 }
 
 function handleDragOver(e) {
@@ -414,6 +438,15 @@ function displaySelectedFile(file) {
         uploadedFile.style.display = 'block';
         fileName.textContent = file.name;
         fileSize.textContent = formatFileSize(file.size);
+    }
+    
+    // Set the file input for form processing
+    const fileUploadInput = document.getElementById('file-upload');
+    if (fileUploadInput) {
+        // Create a new FileList with our file
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileUploadInput.files = dt.files;
     }
 }
 
@@ -470,10 +503,17 @@ async function processPDFFile() {
 
 // Existing Functions (Updated)
 async function generateContent() {
-    const prompt = document.getElementById('content-prompt').value;
-    const includeImage = document.getElementById('include-image').checked;
+    const promptInput = document.getElementById('content-prompt');
+    if (!promptInput) {
+        showToast('error', 'Content prompt field not found');
+        return;
+    }
     
-    if (!prompt.trim()) {
+    const prompt = promptInput.value.trim();
+    const imageCheckbox = document.getElementById('enable-image-gen');
+    const includeImage = imageCheckbox ? imageCheckbox.checked : false;
+    
+    if (!prompt) {
         showToast('error', 'Please enter a content prompt');
         return;
     }
@@ -505,7 +545,8 @@ async function generateContent() {
         
         // Generate image if requested
         if (includeImage) {
-            generateImage(prompt);
+            const imagePrompt = document.getElementById('image-prompt')?.value || prompt;
+            generateImage(imagePrompt);
         }
         
         showToast('success', 'Content generated successfully!');
@@ -689,9 +730,13 @@ async function publishPost() {
             showToast('success', scheduleTime ? 'Post scheduled successfully!' : 'Post published successfully!');
             
             // Clear the form
-            document.getElementById('content-prompt').value = '';
-            document.getElementById('content-preview').style.display = 'none';
-            document.getElementById('publish-options').style.display = 'none';
+            const contentPrompt = document.getElementById('content-prompt');
+            const contentPreview = document.getElementById('content-preview');
+            const publishOptions = document.getElementById('publish-options');
+            
+            if (contentPrompt) contentPrompt.value = '';
+            if (contentPreview) contentPreview.style.display = 'none';
+            if (publishOptions) publishOptions.style.display = 'none';
             
             // Refresh data
             fetchStats();
@@ -802,4 +847,30 @@ function loadAnalytics() {
             campaigns.textContent = document.getElementById("active-campaigns")?.textContent || "0";
         }
     });
+}
+
+function loadInitialData() {
+    console.log("Initial data loaded");
+    fetchStats();
+    fetchFiles();
+    fetchPosts();
+}
+
+function toggleImagePrompt() {
+    const checkbox = document.getElementById("enable-image-gen");
+    const imagePromptGroup = document.getElementById("image-prompt-group");
+    
+    if (checkbox && imagePromptGroup) {
+        imagePromptGroup.style.display = checkbox.checked ? "block" : "none";
+    }
+}
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (file && file.type === "application/pdf") {
+        displaySelectedFile(file);
+    } else {
+        showToast("error", "Please select a valid PDF file");
+        event.target.value = "";
+    }
 }
