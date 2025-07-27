@@ -10,7 +10,7 @@ except ImportError:
     types = None
 
 # Initialize Gemini client
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", "default_key"))
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 def generate_linkedin_post(prompt: str) -> str:
     """Generate a LinkedIn post using Gemini AI"""

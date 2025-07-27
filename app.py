@@ -8,6 +8,9 @@ from flask_limiter.util import get_remote_address
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config_dict
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Set up logging
 logging.basicConfig(
@@ -54,7 +57,7 @@ def create_app(config_name=None):
     # Register blueprints/routes
     with app.app_context():
         # Import models to ensure they're registered
-        from models import Post, UploadedFile, AutomationRule, MarketingCampaign, LinkedInProfile, User
+        from models import Post, UploadedFile, AutomationRule, MarketingCampaign, LinkedInProfile
         
         # Create all database tables
         db.create_all()
