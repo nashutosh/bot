@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime
-from flask import render_template, request, jsonify, current_app, g, Blueprint
+from flask import render_template, request, jsonify, current_app, g, Blueprint, redirect, session
 from extensions import db, limiter
 from models import User, Post, UploadedFile, AutomationRule, MarketingCampaign, LinkedInProfile
 from gemini_service import generate_linkedin_post, generate_image_with_gemini
@@ -162,51 +162,51 @@ def register_routes(app):
                 'message': 'Failed to generate image'
             }), 500
 
-@app.route('/api/upload-pdf', methods=['POST'])
-def upload_pdf():
-    """Handle PDF file upload and processing"""
-    try:
-        if 'file' not in request.files:
-            return jsonify({'success': False, 'error': 'No file uploaded'}), 400
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'success': False, 'error': 'No file selected'}), 400
-        
-        # Process the PDF
-        result = process_pdf_file(file, current_app.config['UPLOAD_FOLDER'])
-        
-        if result['success']:
-            # Save to database
-            uploaded_file = UploadedFile()
-            uploaded_file.filename = result['filename']
-            uploaded_file.original_filename = result['original_filename']
-            uploaded_file.file_path = result['file_path']
-            uploaded_file.file_size = result['file_size']
-            uploaded_file.mime_type = 'application/pdf'
-            uploaded_file.extracted_text = result['extracted_text']
-            uploaded_file.summary = result['summary']
-            uploaded_file.processed = True
+    @app.route('/api/upload-pdf', methods=['POST'])
+    def upload_pdf():
+        """Handle PDF file upload and processing"""
+        try:
+            if 'file' not in request.files:
+                return jsonify({'success': False, 'error': 'No file uploaded'}), 400
             
-            db.session.add(uploaded_file)
-            db.session.commit()
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({'success': False, 'error': 'No file selected'}), 400
             
+            # Process the PDF
+            result = process_pdf_file(file, current_app.config['UPLOAD_FOLDER'])
+            
+            if result['success']:
+                # Save to database
+                uploaded_file = UploadedFile()
+                uploaded_file.filename = result['filename']
+                uploaded_file.original_filename = result['original_filename']
+                uploaded_file.file_path = result['file_path']
+                uploaded_file.file_size = result['file_size']
+                uploaded_file.mime_type = 'application/pdf'
+                uploaded_file.extracted_text = result['extracted_text']
+                uploaded_file.summary = result['summary']
+                uploaded_file.processed = True
+                
+                db.session.add(uploaded_file)
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'file_id': uploaded_file.id,
+                    'summary': result['summary'],
+                    'message': result['message']
+                })
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logging.error(f"Error in upload_pdf: {str(e)}")
             return jsonify({
-                'success': True,
-                'file_id': uploaded_file.id,
-                'summary': result['summary'],
-                'message': result['message']
-            })
-        else:
-            return jsonify(result), 400
-            
-    except Exception as e:
-        logging.error(f"Error in upload_pdf: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': 'Failed to process PDF'
-        }), 500
+                'success': False,
+                'error': str(e),
+                'message': 'Failed to process PDF'
+            }), 500
 
     # Post Management Routes
     @app.route('/api/create-post', methods=['POST'])
@@ -272,339 +272,339 @@ def upload_pdf():
                 'success': True,
                 'post_id': post.id,
                 'status': post.status,
-            'message': 'Post created successfully'
-        }
-        
-        # Add LinkedIn URL if published successfully
-        if post.status == 'published' and post.linkedin_url:
-            response_data['linkedin_url'] = post.linkedin_url
-            response_data['message'] = 'Post published successfully to LinkedIn!'
-        elif post.status == 'failed':
-            response_data['error_message'] = post.error_message
-            
-        return jsonify(response_data)
-        
-    except Exception as e:
-        logging.error(f"Error in create_post: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': 'Failed to create post'
-        }), 500
-
-@app.route('/api/posts', methods=['GET'])
-def get_posts():
-    """Get all posts with pagination"""
-    try:
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 10, type=int)
-        
-        posts = Post.query.order_by(Post.created_at.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
-        
-        return jsonify({
-            'success': True,
-            'posts': [post.to_dict() for post in posts.items],
-            'total': posts.total,
-            'pages': posts.pages,
-            'current_page': posts.page,
-            'has_next': posts.has_next,
-            'has_prev': posts.has_prev
-        })
-        
-    except Exception as e:
-        logging.error(f"Error in get_posts: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': 'Failed to fetch posts'
-        }), 500
-
-@app.route('/api/stats', methods=['GET'])
-def get_stats():
-    """Get posting statistics"""
-    try:
-        total_posts = Post.query.count()
-        scheduled_posts = Post.query.filter_by(status='scheduled').count()
-        published_posts = Post.query.filter_by(status='published').count()
-        failed_posts = Post.query.filter_by(status='failed').count()
-        
-        return jsonify({
-            'success': True,
-            'stats': {
-                'total_posts': total_posts,
-                'scheduled_posts': scheduled_posts,
-                'published_posts': published_posts,
-                'failed_posts': failed_posts
+                'message': 'Post created successfully'
             }
-        })
-        
-    except Exception as e:
-        logging.error(f"Error in get_stats: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': 'Failed to fetch statistics'
-        }), 500
+            
+            # Add LinkedIn URL if published successfully
+            if post.status == 'published' and post.linkedin_url:
+                response_data['linkedin_url'] = post.linkedin_url
+                response_data['message'] = 'Post published successfully to LinkedIn!'
+            elif post.status == 'failed':
+                response_data['error_message'] = post.error_message
+                
+            return jsonify(response_data)
+            
+        except Exception as e:
+            logging.error(f"Error in create_post: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'Failed to create post'
+            }), 500
 
-@app.route('/static/uploads/<filename>')
-def uploaded_file(filename):
-    """Serve uploaded files"""
-    from flask import send_from_directory
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+    @app.route('/api/posts', methods=['GET'])
+    def get_posts():
+        """Get all posts with pagination"""
+        try:
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 10, type=int)
+            
+            posts = Post.query.order_by(Post.created_at.desc()).paginate(
+                page=page, per_page=per_page, error_out=False
+            )
+            
+            return jsonify({
+                'success': True,
+                'posts': [post.to_dict() for post in posts.items],
+                'total': posts.total,
+                'pages': posts.pages,
+                'current_page': posts.page,
+                'has_next': posts.has_next,
+                'has_prev': posts.has_prev
+            })
+            
+        except Exception as e:
+            logging.error(f"Error in get_posts: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'Failed to fetch posts'
+            }), 500
+
+    @app.route('/api/stats', methods=['GET'])
+    def get_stats():
+        """Get posting statistics"""
+        try:
+            total_posts = Post.query.count()
+            scheduled_posts = Post.query.filter_by(status='scheduled').count()
+            published_posts = Post.query.filter_by(status='published').count()
+            failed_posts = Post.query.filter_by(status='failed').count()
+            
+            return jsonify({
+                'success': True,
+                'stats': {
+                    'total_posts': total_posts,
+                    'scheduled_posts': scheduled_posts,
+                    'published_posts': published_posts,
+                    'failed_posts': failed_posts
+                }
+            })
+            
+        except Exception as e:
+            logging.error(f"Error in get_stats: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'Failed to fetch statistics'
+            }), 500
+
+    @app.route('/static/uploads/<filename>')
+    def uploaded_file(filename):
+        """Serve uploaded files"""
+        from flask import send_from_directory
+        return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
 
 # Automation API Endpoints
 
-@app.route('/api/automation/accept-connections', methods=['POST'])
-def auto_accept_connections():
-    """Auto-accept all pending connection requests"""
-    try:
-        result = linkedin_automation.auto_accept_connections()
-        return jsonify(result)
-    except Exception as e:
-        logging.error(f"Error in auto_accept_connections: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+    @app.route('/api/automation/accept-connections', methods=['POST'])
+    def auto_accept_connections():
+        """Auto-accept all pending connection requests"""
+        try:
+            result = linkedin_automation.auto_accept_connections()
+            return jsonify(result)
+        except Exception as e:
+            logging.error(f"Error in auto_accept_connections: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/automation/send-connections', methods=['POST'])
-def auto_send_connections():
-    """Send connection requests to target profiles"""
-    try:
-        data = request.get_json()
-        target_profiles = data.get('target_profiles', [])
-        message = data.get('message', '')
-        
-        result = linkedin_automation.auto_send_connections(target_profiles, message)
-        return jsonify(result)
-    except Exception as e:
-        logging.error(f"Error in auto_send_connections: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+    @app.route('/api/automation/send-connections', methods=['POST'])
+    def auto_send_connections():
+        """Send connection requests to target profiles"""
+        try:
+            data = request.get_json()
+            target_profiles = data.get('target_profiles', [])
+            message = data.get('message', '')
+            
+            result = linkedin_automation.auto_send_connections(target_profiles, message)
+            return jsonify(result)
+        except Exception as e:
+            logging.error(f"Error in auto_send_connections: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/automation/follow-successful', methods=['POST'])
-def auto_follow_successful():
-    """Auto-follow successful people based on criteria"""
-    try:
-        data = request.get_json()
-        criteria = data.get('criteria', {})
-        
-        result = linkedin_automation.auto_follow_successful_people(criteria)
-        return jsonify(result)
-    except Exception as e:
-        logging.error(f"Error in auto_follow_successful: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+    @app.route('/api/automation/follow-successful', methods=['POST'])
+    def auto_follow_successful():
+        """Auto-follow successful people based on criteria"""
+        try:
+            data = request.get_json()
+            criteria = data.get('criteria', {})
+            
+            result = linkedin_automation.auto_follow_successful_people(criteria)
+            return jsonify(result)
+        except Exception as e:
+            logging.error(f"Error in auto_follow_successful: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/automation/engage-posts', methods=['POST'])
-def auto_engage_posts():
-    """Auto-engage with posts containing specific keywords"""
-    try:
-        data = request.get_json()
-        keywords = data.get('keywords', [])
-        
-        result = linkedin_automation.auto_engage_with_posts(keywords)
-        return jsonify(result)
-    except Exception as e:
-        logging.error(f"Error in auto_engage_posts: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+    @app.route('/api/automation/engage-posts', methods=['POST'])
+    def auto_engage_posts():
+        """Auto-engage with posts containing specific keywords"""
+        try:
+            data = request.get_json()
+            keywords = data.get('keywords', [])
+            
+            result = linkedin_automation.auto_engage_with_posts(keywords)
+            return jsonify(result)
+        except Exception as e:
+            logging.error(f"Error in auto_engage_posts: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/marketing/create-campaign', methods=['POST'])
-def create_marketing_campaign():
-    """Create a marketing campaign from PDF content"""
-    try:
-        data = request.get_json()
-        campaign_name = data.get('campaign_name', '')
-        product_info = data.get('product_info', {})
-        pdf_id = data.get('pdf_id')
-        target_keywords = data.get('target_keywords', [])
-        
-        if not campaign_name:
-            return jsonify({'success': False, 'error': 'Campaign name required'}), 400
-        
-        # Get PDF content if provided
-        pdf_content = ""
-        if pdf_id:
-            pdf_file = UploadedFile.query.get(pdf_id)
-            if not pdf_file:
-                return jsonify({'success': False, 'error': 'PDF not found'}), 404
-            pdf_content = pdf_file.extracted_text or pdf_file.summary or ""
-        else:
-            # Use product info for content generation
-            pdf_content = f"Product: {product_info.get('name', '')}. Keywords: {', '.join(target_keywords)}"
-        
-        # Create marketing campaign
-        campaign = MarketingCampaign()
-        campaign.campaign_name = campaign_name
-        campaign.product_name = product_info.get('name', '')
-        campaign.source_pdf_id = pdf_id
-        campaign.target_keywords = target_keywords
-        campaign.start_date = datetime.utcnow()
-        
-        db.session.add(campaign)
-        db.session.commit()
-        
-        # Schedule marketing posts
-        result = linkedin_automation.schedule_marketing_campaign(
-            pdf_content, 
-            product_info
-        )
-        
-        if result['success']:
-            # Create scheduled posts
-            for post_data in result['posts']:
-                post = Post()
-                post.content = post_data['content']
-                post.schedule_time = post_data['schedule_time']
-                post.status = 'scheduled'
-                post.post_type = 'text'
+    @app.route('/api/marketing/create-campaign', methods=['POST'])
+    def create_marketing_campaign():
+        """Create a marketing campaign from PDF content"""
+        try:
+            data = request.get_json()
+            campaign_name = data.get('campaign_name', '')
+            product_info = data.get('product_info', {})
+            pdf_id = data.get('pdf_id')
+            target_keywords = data.get('target_keywords', [])
+            
+            if not campaign_name:
+                return jsonify({'success': False, 'error': 'Campaign name required'}), 400
+            
+            # Get PDF content if provided
+            pdf_content = ""
+            if pdf_id:
+                pdf_file = UploadedFile.query.get(pdf_id)
+                if not pdf_file:
+                    return jsonify({'success': False, 'error': 'PDF not found'}), 404
+                pdf_content = pdf_file.extracted_text or pdf_file.summary or ""
+            else:
+                # Use product info for content generation
+                pdf_content = f"Product: {product_info.get('name', '')}. Keywords: {', '.join(target_keywords)}"
+            
+            # Create marketing campaign
+            campaign = MarketingCampaign()
+            campaign.campaign_name = campaign_name
+            campaign.product_name = product_info.get('name', '')
+            campaign.source_pdf_id = pdf_id
+            campaign.target_keywords = target_keywords
+            campaign.start_date = datetime.utcnow()
+            
+            db.session.add(campaign)
+            db.session.commit()
+            
+            # Schedule marketing posts
+            result = linkedin_automation.schedule_marketing_campaign(
+                pdf_content, 
+                product_info
+            )
+            
+            if result['success']:
+                # Create scheduled posts
+                for post_data in result['posts']:
+                    post = Post()
+                    post.content = post_data['content']
+                    post.schedule_time = post_data['schedule_time']
+                    post.status = 'scheduled'
+                    post.post_type = 'text'
+                    
+                    db.session.add(post)
                 
-                db.session.add(post)
-            
-            campaign.posts_generated = len(result['posts'])
-            db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'campaign_id': campaign.id,
-            'posts_scheduled': result.get('scheduled_posts', 0),
-            'message': 'Marketing campaign created successfully'
-        })
-        
-    except Exception as e:
-        logging.error(f"Error in create_marketing_campaign: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/automation/rules', methods=['GET', 'POST'])
-def automation_rules():
-    """Get or create automation rules"""
-    try:
-        if request.method == 'GET':
-            rules = AutomationRule.query.filter_by(is_active=True).all()
-            return jsonify({
-                'success': True,
-                'rules': [rule.to_dict() for rule in rules]
-            })
-        
-        elif request.method == 'POST':
-            data = request.get_json()
-            
-            rule = AutomationRule()
-            rule.rule_name = data.get('rule_name', '')
-            rule.rule_type = data.get('rule_type', '')
-            rule.target_criteria = data.get('target_criteria', {})
-            rule.action_limit = data.get('action_limit', 50)
-            
-            db.session.add(rule)
-            db.session.commit()
+                campaign.posts_generated = len(result['posts'])
+                db.session.commit()
             
             return jsonify({
                 'success': True,
-                'rule_id': rule.id,
-                'message': 'Automation rule created'
+                'campaign_id': campaign.id,
+                'posts_scheduled': result.get('scheduled_posts', 0),
+                'message': 'Marketing campaign created successfully'
             })
             
-    except Exception as e:
-        logging.error(f"Error in automation_rules: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        except Exception as e:
+            logging.error(f"Error in create_marketing_campaign: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/marketing/campaigns', methods=['GET'])
-def get_marketing_campaigns():
-    """Get all marketing campaigns"""
-    try:
-        campaigns = MarketingCampaign.query.order_by(MarketingCampaign.created_at.desc()).all()
-        
-        return jsonify({
-            'success': True,
-            'campaigns': [campaign.to_dict() for campaign in campaigns]
-        })
-        
-    except Exception as e:
-        logging.error(f"Error in get_marketing_campaigns: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/profiles', methods=['GET', 'POST'])
-def linkedin_profiles():
-    """Get or add LinkedIn profiles for automation"""
-    try:
-        if request.method == 'GET':
-            profiles = LinkedInProfile.query.order_by(LinkedInProfile.created_at.desc()).limit(50).all()
-            return jsonify({
-                'success': True,
-                'profiles': [profile.to_dict() for profile in profiles]
-            })
-        
-        elif request.method == 'POST':
-            data = request.get_json()
-            
-            # Check if profile already exists
-            existing = LinkedInProfile.query.filter_by(linkedin_id=data.get('linkedin_id')).first()
-            if existing:
+    @app.route('/api/automation/rules', methods=['GET', 'POST'])
+    def automation_rules():
+        """Get or create automation rules"""
+        try:
+            if request.method == 'GET':
+                rules = AutomationRule.query.filter_by(is_active=True).all()
                 return jsonify({
-                    'success': False,
-                    'error': 'Profile already exists'
-                }), 400
+                    'success': True,
+                    'rules': [rule.to_dict() for rule in rules]
+                })
             
-            profile = LinkedInProfile()
-            profile.linkedin_id = data.get('linkedin_id', '')
-            profile.name = data.get('name', '')
-            profile.headline = data.get('headline', '')
-            profile.industry = data.get('industry', '')
-            profile.location = data.get('location', '')
-            profile.is_target = data.get('is_target', False)
-            
-            db.session.add(profile)
-            db.session.commit()
+            elif request.method == 'POST':
+                data = request.get_json()
+                
+                rule = AutomationRule()
+                rule.rule_name = data.get('rule_name', '')
+                rule.rule_type = data.get('rule_type', '')
+                rule.target_criteria = data.get('target_criteria', {})
+                rule.action_limit = data.get('action_limit', 50)
+                
+                db.session.add(rule)
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'rule_id': rule.id,
+                    'message': 'Automation rule created'
+                })
+                
+        except Exception as e:
+            logging.error(f"Error in automation_rules: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/marketing/campaigns', methods=['GET'])
+    def get_marketing_campaigns():
+        """Get all marketing campaigns"""
+        try:
+            campaigns = MarketingCampaign.query.order_by(MarketingCampaign.created_at.desc()).all()
             
             return jsonify({
                 'success': True,
-                'profile_id': profile.id,
-                'message': 'Profile added successfully'
+                'campaigns': [campaign.to_dict() for campaign in campaigns]
             })
             
-    except Exception as e:
-        logging.error(f"Error in linkedin_profiles: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        except Exception as e:
+            logging.error(f"Error in get_marketing_campaigns: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'success': False, 'error': 'Endpoint not found'}), 404
+    @app.route('/api/profiles', methods=['GET', 'POST'])
+    def linkedin_profiles():
+        """Get or add LinkedIn profiles for automation"""
+        try:
+            if request.method == 'GET':
+                profiles = LinkedInProfile.query.order_by(LinkedInProfile.created_at.desc()).limit(50).all()
+                return jsonify({
+                    'success': True,
+                    'profiles': [profile.to_dict() for profile in profiles]
+                })
+            
+            elif request.method == 'POST':
+                data = request.get_json()
+                
+                # Check if profile already exists
+                existing = LinkedInProfile.query.filter_by(linkedin_id=data.get('linkedin_id')).first()
+                if existing:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Profile already exists'
+                    }), 400
+                
+                profile = LinkedInProfile()
+                profile.linkedin_id = data.get('linkedin_id', '')
+                profile.name = data.get('name', '')
+                profile.headline = data.get('headline', '')
+                profile.industry = data.get('industry', '')
+                profile.location = data.get('location', '')
+                profile.is_target = data.get('is_target', False)
+                
+                db.session.add(profile)
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'profile_id': profile.id,
+                    'message': 'Profile added successfully'
+                })
+                
+        except Exception as e:
+            logging.error(f"Error in linkedin_profiles: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({'success': False, 'error': 'Internal server error'}), 500
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({'success': False, 'error': 'Endpoint not found'}), 404
 
-# LinkedIn OAuth Authentication Routes
-@app.route("/auth/linkedin")
-def linkedin_auth():
-    """Redirect to LinkedIn OAuth"""
-    auth_url = linkedin_service.get_authorization_url()
-    return redirect(auth_url)
+    @app.errorhandler(500)
+    def internal_error(error):
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
-@app.route("/auth/linkedin/callback")
-def linkedin_callback():
-    """Handle LinkedIn OAuth callback"""
-    code = request.args.get("code")
-    if not code:
-        return jsonify({"error": "No authorization code received"}), 400
-    
-    result = linkedin_service.exchange_code_for_token(code)
-    if result["success"]:
-        session["linkedin_token"] = result["token"]
-        linkedin_service.access_token = result["token"]
-        return redirect("/?auth=success")
-    else:
-        return redirect("/?auth=error")
+    # LinkedIn OAuth Authentication Routes
+    @app.route("/auth/linkedin")
+    def linkedin_auth():
+        """Redirect to LinkedIn OAuth"""
+        auth_url = linkedin_service.get_authorization_url()
+        return redirect(auth_url)
 
-@app.route("/api/linkedin-status")
-def linkedin_status():
-    """Check LinkedIn authentication status"""
-    token = session.get("linkedin_token")
-    if token:
-        linkedin_service.access_token = token
-        return jsonify({"authenticated": True})
-    else:
-        return jsonify({
-            "authenticated": False,
-            "auth_url": linkedin_service.get_authorization_url()
-        })
+    @app.route("/auth/linkedin/callback")
+    def linkedin_callback():
+        """Handle LinkedIn OAuth callback"""
+        code = request.args.get("code")
+        if not code:
+            return jsonify({"error": "No authorization code received"}), 400
+        
+        result = linkedin_service.exchange_code_for_token(code)
+        if result["success"]:
+            session["linkedin_token"] = result["token"]
+            linkedin_service.access_token = result["token"]
+            return redirect("/?auth=success")
+        else:
+            return redirect("/?auth=error")
+
+    @app.route("/api/linkedin-status")
+    def linkedin_status():
+        """Check LinkedIn authentication status"""
+        token = session.get("linkedin_token")
+        if token:
+            linkedin_service.access_token = token
+            return jsonify({"authenticated": True})
+        else:
+            return jsonify({
+                "authenticated": False,
+                "auth_url": linkedin_service.get_authorization_url()
+            })
 
     # Advanced Image Generation Routes
     @app.route('/api/image/generate-advanced', methods=['POST'])
