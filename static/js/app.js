@@ -1,1109 +1,614 @@
-// LinkedIn AI Agent - Enhanced Marketing Automation
-console.log('Initializing LinkedIn AI Agent...');
-
-let currentPosts = [];
-let currentFiles = [];
-let activeCampaigns = [];
-
-document.addEventListener('DOMContentLoaded', function() {
-    initializeApp();
-    bindEventListeners();
-    loadInitialData();
-});
-
-function initializeApp() {
-    console.log('App initialized successfully');
-    
-    // Initialize tooltips
-    if (typeof bootstrap !== 'undefined') {
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
+// LinkedIn Marketing Agent - Frontend JavaScript
+class LinkedInMarketingAgent {
+    constructor() {
+        this.apiBaseUrl = '/api';
+        this.currentUser = null;
+        this.authToken = localStorage.getItem('authToken');
+        this.refreshToken = localStorage.getItem('refreshToken');
+        
+        this.init();
     }
-}
-
-function bindEventListeners() {
-    // Navigation listeners
-    document.querySelectorAll('[data-page]').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            switchPage(e.target.closest('[data-page]').dataset.page);
-        });
-    });
-
-    // Existing listeners
-    document.getElementById('generate-btn')?.addEventListener('click', generateContent);
-    document.getElementById('post-btn')?.addEventListener('click', publishPost);
-    document.getElementById('view-all-posts-btn')?.addEventListener('click', togglePostsList);
     
-    // Image generation toggle
-    document.getElementById('enable-image-gen')?.addEventListener('change', toggleImagePrompt);
-    
-    // Automation listeners
-    document.getElementById('auto-accept-btn')?.addEventListener('click', autoAcceptConnections);
-    document.getElementById('auto-follow-btn')?.addEventListener('click', autoFollowSuccessful);
-    document.getElementById('auto-engage-btn')?.addEventListener('click', autoEngagePosts);
-    document.getElementById('create-campaign-btn')?.addEventListener('click', showCampaignModal);
-    document.getElementById('upload-pdf-btn')?.addEventListener('click', showPDFUploadModal);
-    document.getElementById('smart-campaign-btn')?.addEventListener('click', smartCampaignFromPDF);
-
-    
-    // PDF upload modal listeners
-    document.getElementById('cancel-upload')?.addEventListener('click', closePDFModal);
-    document.getElementById('cancel-pdf-upload')?.addEventListener('click', closePDFModal);
-    document.getElementById('process-pdf')?.addEventListener('click', processPDFFile);
-    document.getElementById('remove-file')?.addEventListener('click', removeSelectedFile);
-    
-    // File upload handlers
-    document.getElementById('pdf-upload')?.addEventListener('change', handleFileUpload);
-    document.getElementById('file-upload')?.addEventListener('change', handleFileUpload);
-    
-    // Drag and drop for PDF upload
-    const uploadArea = document.getElementById('upload-area');
-    if (uploadArea) {
-        uploadArea.addEventListener('click', () => document.getElementById('file-upload')?.click());
-        uploadArea.addEventListener('dragover', handleDragOver);
-        uploadArea.addEventListener('drop', handleFileDrop);
+    init() {
+        this.setupEventListeners();
+        this.checkAuthentication();
+        this.initializeCharts();
     }
-}
-
-function loadInitialData() {
-    Promise.all([
-        fetchStats(),
-        fetchPosts(),
-        fetchFiles(),
-        fetchCampaigns()
-    ]).then(() => {
-        console.log('Initial data loaded');
-    }).catch(error => {
-        console.error('Error loading initial data:', error);
-    });
-}
-
-// Enhanced Stats Function
-async function fetchStats() {
-    try {
-        const response = await fetch('/api/stats');
-        const data = await response.json();
-        
-        if (data.success) {
-            updateStatsUI(data.stats);
-        }
-    } catch (error) {
-        console.error('Error fetching stats:', error);
-    }
-}
-
-function updateStatsUI(stats) {
-    document.getElementById('total-posts').textContent = stats.total_posts || 0;
-    document.getElementById('scheduled-posts').textContent = stats.scheduled_posts || 0;
-    document.getElementById('published-posts').textContent = stats.published_posts || 0;
     
-    // Update new automation stats
-    document.getElementById('total-connections').textContent = stats.total_connections || 0;
-    document.getElementById('active-campaigns').textContent = activeCampaigns.length || 0;
-}
-
-// Automation Functions
-async function autoAcceptConnections() {
-    const btn = document.getElementById('auto-accept-btn');
-    const originalText = btn.innerHTML;
-    
-    try {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
-        btn.disabled = true;
-        
-        const response = await fetch('/api/automation/accept-connections', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('success', `Accepted ${data.accepted_count || 0} connection requests!`);
+    // Authentication Methods
+    checkAuthentication() {
+        if (this.authToken) {
+            this.validateToken();
         } else {
-            showToast('error', data.message || 'Failed to accept connections');
+            this.showAuthModal();
         }
-        
-    } catch (error) {
-        console.error('Error in auto accept connections:', error);
-        showToast('error', 'Error processing connection requests');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
     }
-}
-
-async function autoFollowSuccessful() {
-    const btn = document.getElementById('auto-follow-btn');
-    const originalText = btn.innerHTML;
     
-    try {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Following...';
-        btn.disabled = true;
-        
-        const criteria = {
-            industries: ['Technology', 'Software', 'AI', 'Startups'],
-            positions: ['CEO', 'Founder', 'CTO', 'VP', 'Director'],
-            locations: ['United States', 'United Kingdom', 'Canada', 'Australia']
+    async validateToken() {
+        try {
+            const response = await this.apiCall('/auth/validate', 'GET');
+            if (response.success) {
+                this.currentUser = response.user;
+                this.showApp();
+                this.loadDashboardData();
+            } else {
+                this.showAuthModal();
+            }
+        } catch (error) {
+            console.error('Token validation failed:', error);
+            this.showAuthModal();
+        }
+    }
+    
+    async login(username, password) {
+        try {
+            this.showLoading();
+            const response = await this.apiCall('/auth/login', 'POST', {
+                username: username,
+                password: password
+            });
+            
+            if (response.success) {
+                this.authToken = response.tokens.access_token;
+                this.refreshToken = response.tokens.refresh_token;
+                localStorage.setItem('authToken', this.authToken);
+                localStorage.setItem('refreshToken', this.refreshToken);
+                
+                this.currentUser = response.user;
+                this.hideAuthModal();
+                this.showApp();
+                this.loadDashboardData();
+                this.showNotification('Welcome back!', 'success');
+            } else {
+                this.showNotification(response.error || 'Login failed', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Login failed: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async register(userData) {
+        try {
+            this.showLoading();
+            const response = await this.apiCall('/auth/register', 'POST', userData);
+            
+            if (response.success) {
+                this.authToken = response.tokens.access_token;
+                this.refreshToken = response.tokens.refresh_token;
+                localStorage.setItem('authToken', this.authToken);
+                localStorage.setItem('refreshToken', this.refreshToken);
+                
+                this.currentUser = response.user;
+                this.hideAuthModal();
+                this.showApp();
+                this.loadDashboardData();
+                this.showNotification('Account created successfully!', 'success');
+            } else {
+                this.showNotification(response.error || 'Registration failed', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Registration failed: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    logout() {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        this.authToken = null;
+        this.refreshToken = null;
+        this.currentUser = null;
+        this.hideApp();
+        this.showAuthModal();
+        this.showNotification('Logged out successfully', 'info');
+    }
+    
+    // UI Methods
+    showAuthModal() {
+        document.getElementById('authModal').classList.remove('hidden');
+        document.getElementById('appContainer').classList.add('hidden');
+    }
+    
+    hideAuthModal() {
+        document.getElementById('authModal').classList.add('hidden');
+    }
+    
+    showApp() {
+        document.getElementById('appContainer').classList.remove('hidden');
+        if (this.currentUser) {
+            document.getElementById('userDisplayName').textContent = 
+                this.currentUser.first_name || this.currentUser.username;
+        }
+    }
+    
+    hideApp() {
+        document.getElementById('appContainer').classList.add('hidden');
+    }
+    
+    showLoading() {
+        document.getElementById('loadingOverlay').classList.remove('hidden');
+    }
+    
+    hideLoading() {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+    }
+    
+    showNotification(message, type = 'info') {
+        const notification = document.getElementById('notification');
+        const typeColors = {
+            success: 'bg-green-500',
+            error: 'bg-red-500',
+            warning: 'bg-yellow-500',
+            info: 'bg-blue-500'
         };
         
-        const response = await fetch('/api/automation/follow-successful', {
-            method: 'POST',
+        const typeIcons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        notification.innerHTML = `
+            <div class="${typeColors[type]} text-white px-6 py-4 rounded-lg shadow-lg">
+                <div class="flex items-center">
+                    <i class="${typeIcons[type]} mr-3"></i>
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.parentElement.classList.remove('show')" class="ml-4">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        notification.classList.add('show');
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 5000);
+    }
+    
+    showSection(sectionName) {
+        // Hide all sections
+        document.querySelectorAll('.section-content').forEach(section => {
+            section.classList.add('hidden');
+        });
+        
+        // Show selected section
+        document.getElementById(`${sectionName}-section`).classList.remove('hidden');
+        
+        // Update active nav link
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('bg-linkedin', 'text-white');
+            link.classList.add('text-gray-700');
+        });
+        
+        event.target.classList.add('bg-linkedin', 'text-white');
+        event.target.classList.remove('text-gray-700');
+        
+        // Load section-specific data
+        this.loadSectionData(sectionName);
+    }
+    
+    // API Methods
+    async apiCall(endpoint, method = 'GET', data = null) {
+        const url = this.apiBaseUrl + endpoint;
+        const options = {
+            method: method,
             headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ criteria })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('success', `Followed ${data.followed_count || 0} successful profiles!`);
-        } else {
-            showToast('error', data.message || 'Failed to follow profiles');
-        }
-        
-    } catch (error) {
-        console.error('Error in auto follow:', error);
-        showToast('error', 'Error following profiles');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function autoEngagePosts() {
-    const btn = document.getElementById('auto-engage-btn');
-    const originalText = btn.innerHTML;
-    
-    try {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Engaging...';
-        btn.disabled = true;
-        
-        const keywords = ['AI', 'artificial intelligence', 'machine learning', 'automation', 'technology', 'innovation', 'startup', 'business'];
-        
-        const response = await fetch('/api/automation/engage-posts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ keywords })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('success', `Engaged with ${data.engaged_posts || 0} relevant posts!`);
-        } else {
-            showToast('error', data.message || 'Failed to engage with posts');
-        }
-        
-    } catch (error) {
-        console.error('Error in auto engage:', error);
-        showToast('error', 'Error engaging with posts');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-// Smart Campaign from PDF
-async function smartCampaignFromPDF() {
-    if (currentFiles.length === 0) {
-        showToast('warning', 'Please upload a PDF first to create a smart campaign');
-        return;
-    }
-    
-    // Auto-populate campaign modal with PDF data
-    const latestPDF = currentFiles[0];
-    document.getElementById('campaign-name').value = `Smart Campaign - ${latestPDF.original_filename.replace('.pdf', '')}`;
-    document.getElementById('product-name').value = 'AI-Powered Solution';
-    document.getElementById('target-keywords').value = 'AI, automation, technology, innovation, business growth';
-    
-    // Populate PDF selector
-    const pdfSelect = document.getElementById('pdf-select');
-    pdfSelect.innerHTML = '<option value="">Select PDF for content inspiration</option>';
-    currentFiles.forEach(file => {
-        const option = document.createElement('option');
-        option.value = file.id;
-        option.textContent = file.original_filename;
-        if (file === latestPDF) option.selected = true;
-        pdfSelect.appendChild(option);
-    });
-    
-    showCampaignModal();
-}
-
-// Campaign Management
-function showCampaignModal() {
-    // Load available PDFs
-    const pdfSelect = document.getElementById('pdf-select');
-    pdfSelect.innerHTML = '<option value="">Select PDF for content inspiration</option>';
-    
-    currentFiles.forEach(file => {
-        const option = document.createElement('option');
-        option.value = file.id;
-        option.textContent = file.original_filename;
-        pdfSelect.appendChild(option);
-    });
-    
-    document.getElementById('campaign-modal').style.display = 'flex';
-}
-
-async function createMarketingCampaign() {
-    const campaignName = document.getElementById('campaign-name').value;
-    const productName = document.getElementById('product-name').value;
-    const targetKeywords = document.getElementById('target-keywords').value.split(',').map(k => k.trim());
-    const pdfId = document.getElementById('pdf-select').value;
-    
-    if (!campaignName || !productName) {
-        showToast('error', 'Please fill in campaign name and product name');
-        return;
-    }
-    
-    const btn = document.getElementById('create-campaign');
-    const originalText = btn.innerHTML;
-    
-    try {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
-        btn.disabled = true;
-        
-        const response = await fetch('/api/marketing/create-campaign', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                campaign_name: campaignName,
-                product_info: { name: productName },
-                target_keywords: targetKeywords,
-                pdf_id: pdfId || null
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('success', `Campaign created! Scheduled ${data.posts_scheduled || 0} posts`);
-            closeModal();
-            fetchCampaigns();
-            fetchStats();
-        } else {
-            showToast('error', data.error || 'Failed to create campaign');
-        }
-        
-    } catch (error) {
-        console.error('Error creating campaign:', error);
-        showToast('error', 'Error creating marketing campaign');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function fetchCampaigns() {
-    try {
-        const response = await fetch('/api/marketing/campaigns');
-        const data = await response.json();
-        
-        if (data.success) {
-            activeCampaigns = data.campaigns;
-            updateStatsUI({ active_campaigns: activeCampaigns.length });
-        }
-    } catch (error) {
-        console.error('Error fetching campaigns:', error);
-    }
-}
-
-// Automation Settings
-function showAutomationModal() {
-    document.getElementById('automation-modal').style.display = 'flex';
-}
-
-async function saveAutomationSettings() {
-    const keywords = document.getElementById('engagement-keywords').value;
-    const message = document.getElementById('connection-message').value;
-    const dailyConnections = document.getElementById('daily-connections').value;
-    const dailyEngagements = document.getElementById('daily-engagements').value;
-    
-    // Save settings (could be stored in localStorage or sent to server)
-    localStorage.setItem('automation-settings', JSON.stringify({
-        keywords: keywords.split(',').map(k => k.trim()),
-        connectionMessage: message,
-        dailyLimits: {
-            connections: parseInt(dailyConnections),
-            engagements: parseInt(dailyEngagements)
-        }
-    }));
-    
-    showToast('success', 'Automation settings saved successfully!');
-    closeModal();
-}
-
-// Modal Management
-function closeModal() {
-    document.getElementById('campaign-modal').style.display = 'none';
-    document.getElementById('automation-modal').style.display = 'none';
-    
-    // Reset forms
-    document.getElementById('campaign-form')?.reset();
-}
-
-function showPDFUploadModal() {
-    const pdfModal = document.getElementById('pdf-modal');
-    if (pdfModal) {
-        pdfModal.style.display = 'flex';
-    } else {
-        console.error('PDF modal not found');
-        showToast('error', 'PDF upload modal not found');
-    }
-}
-
-function closePDFModal() {
-    const pdfModal = document.getElementById('pdf-modal');
-    if (pdfModal) pdfModal.style.display = 'none';
-    
-    // Reset upload state
-    const uploadArea = document.getElementById('upload-area');
-    const uploadedFile = document.getElementById('uploaded-file');
-    const fileUpload = document.getElementById('file-upload');
-    const pdfUpload = document.getElementById('pdf-upload');
-    
-    if (uploadArea) uploadArea.style.display = 'block';
-    if (uploadedFile) uploadedFile.style.display = 'none';
-    if (fileUpload) fileUpload.value = '';
-    if (pdfUpload) pdfUpload.value = '';
-}
-
-function removeSelectedFile() {
-    const uploadArea = document.getElementById('upload-area');
-    const uploadedFile = document.getElementById('uploaded-file');
-    const fileUpload = document.getElementById('file-upload');
-    const pdfUpload = document.getElementById('pdf-upload');
-    
-    if (uploadArea) uploadArea.style.display = 'block';
-    if (uploadedFile) uploadedFile.style.display = 'none';
-    if (fileUpload) fileUpload.value = '';
-    if (pdfUpload) pdfUpload.value = '';
-}
-
-function handleDragOver(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    e.target.classList.add('dragover');
-}
-
-function handleFileDrop(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    e.target.classList.remove('dragover');
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        const file = files[0];
-        if (file.type === 'application/pdf') {
-            displaySelectedFile(file);
-        } else {
-            showToast('error', 'Please select a PDF file');
-        }
-    }
-}
-
-function displaySelectedFile(file) {
-    const uploadArea = document.getElementById('upload-area');
-    const uploadedFile = document.getElementById('uploaded-file');
-    const fileName = document.getElementById('file-name');
-    const fileSize = document.getElementById('file-size');
-    
-    if (uploadArea && uploadedFile && fileName && fileSize) {
-        uploadArea.style.display = 'none';
-        uploadedFile.style.display = 'block';
-        fileName.textContent = file.name;
-        fileSize.textContent = formatFileSize(file.size);
-    }
-    
-    // Set the file input for form processing
-    const fileUploadInput = document.getElementById('file-upload');
-    if (fileUploadInput) {
-        // Create a new FileList with our file
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        fileUploadInput.files = dt.files;
-    }
-}
-
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-async function processPDFFile() {
-    const fileInput = document.getElementById('file-upload');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        showToast('error', 'Please select a PDF file first');
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const btn = document.getElementById('process-pdf');
-    const originalText = btn.innerHTML;
-    
-    try {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
-        btn.disabled = true;
-        
-        const response = await fetch('/api/upload-pdf', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('success', 'PDF processed successfully! You can now use it for content generation.');
-            closePDFModal();
-            fetchFiles();
-        } else {
-            showToast('error', data.error || 'Failed to process PDF');
-        }
-        
-    } catch (error) {
-        console.error('Error processing PDF:', error);
-        showToast('error', 'Error processing PDF file');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-// Existing Functions (Updated)
-async function generateContent() {
-    const promptInput = document.getElementById('content-prompt');
-    if (!promptInput) {
-        showToast('error', 'Content prompt field not found');
-        return;
-    }
-    
-    const prompt = promptInput.value.trim();
-    const imageCheckbox = document.getElementById('enable-image-gen');
-    const includeImage = imageCheckbox ? imageCheckbox.checked : false;
-    
-    if (!prompt) {
-        showToast('error', 'Please enter a content prompt');
-        return;
-    }
-    
-    const btn = document.getElementById('generate-btn');
-    const originalText = btn.innerHTML;
-    
-    try {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating...';
-        btn.disabled = true;
-        
-        // Generate content
-        const contentResponse = await fetch('/api/generate-content', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ prompt })
-        });
-        
-        const contentData = await contentResponse.json();
-        
-        if (!contentData.success) {
-            throw new Error(contentData.error || 'Failed to generate content');
-        }
-        
-        // Display generated content
-        displayGeneratedContent(contentData.content);
-        
-        // Generate image if requested
-        if (includeImage) {
-            const imagePrompt = document.getElementById('image-prompt')?.value || prompt;
-            generateImage(imagePrompt);
-        }
-        
-        showToast('success', 'Content generated successfully!');
-        
-    } catch (error) {
-        console.error('Error generating content:', error);
-        showToast('error', 'Error generating content: ' + error.message);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-function displayGeneratedContent(content) {
-    console.log('Displaying content:', content.substring(0, 100) + '...');
-    
-    // Find the correct elements
-    const generatedText = document.getElementById('generated-text');
-    const contentPreview = document.getElementById('content-preview');
-    
-    if (generatedText) {
-        generatedText.textContent = content;
-        console.log('Content set in generated-text element');
-    } else {
-        console.error('generated-text element not found');
-        // Try alternative selector
-        const altText = document.querySelector('.content-display');
-        if (altText) {
-            altText.textContent = content;
-            console.log('Content set in alternative element');
-        }
-    }
-    
-    if (contentPreview) {
-        contentPreview.style.display = 'block';
-        console.log('Content preview shown');
-        
-        // Show LinkedIn auth status if needed
-        checkLinkedInAuth();
-    } else {
-        console.error('content-preview element not found');
-    }
-    
-    // Show post button
-    const postBtn = document.getElementById('post-btn');
-    if (postBtn) {
-        postBtn.style.display = 'inline-block';
-        postBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Post to LinkedIn';
-    }
-}
-
-async function generateImage(prompt) {
-    console.log('Generating image with prompt:', prompt);
-    
-    try {
-        const response = await fetch('/api/generate-image', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ prompt })
-        });
-        
-        const data = await response.json();
-        console.log('Image generation response:', data);
-        
-        if (data.success && data.image_url) {
-            // Find image preview element
-            const imagePreview = document.getElementById('image-preview');
-            const imageElement = imagePreview ? imagePreview.querySelector('img') : null;
-            
-            if (imageElement) {
-                imageElement.src = data.image_url;
-                imagePreview.style.display = 'block';
-                console.log('Image displayed successfully');
-            } else {
-                console.error('Image element not found');
+                'Content-Type': 'application/json',
             }
-        } else {
-            console.error('Image generation failed:', data);
+        };
+        
+        if (this.authToken) {
+            options.headers['Authorization'] = `Bearer ${this.authToken}`;
         }
         
-    } catch (error) {
-        console.error('Error generating image:', error);
-        showToast('error', 'Failed to generate image');
-    }
-}
-
-async function fetchPosts() {
-    try {
-        const response = await fetch('/api/posts');
-        const data = await response.json();
-        
-        if (data.success) {
-            currentPosts = data.posts;
-            updatePostsList();
+        if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+            options.body = JSON.stringify(data);
         }
-    } catch (error) {
-        console.error('Error fetching posts:', error);
-    }
-}
-
-async function fetchFiles() {
-    try {
-        const response = await fetch('/api/files');
-        const data = await response.json();
         
-        if (data.success) {
-            currentFiles = data.files;
+        try {
+            const response = await fetch(url, options);
+            const result = await response.json();
+            
+            if (response.status === 401 && this.refreshToken) {
+                // Try to refresh token
+                await this.refreshAuthToken();
+                // Retry original request
+                return this.apiCall(endpoint, method, data);
+            }
+            
+            return result;
+        } catch (error) {
+            console.error('API call failed:', error);
+            throw error;
         }
-    } catch (error) {
-        console.error('Error fetching files:', error);
     }
-}
-
-function updatePostsList() {
-    const postsContainer = document.getElementById('posts-list');
-    if (!postsContainer || !currentPosts.length) return;
     
-    postsContainer.innerHTML = currentPosts.map(post => `
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <span class="badge bg-${getStatusColor(post.status)}">${post.status}</span>
-                    <small class="text-muted">${new Date(post.created_at).toLocaleDateString()}</small>
-                </div>
-                <p class="card-text mt-2">${post.content.substring(0, 150)}...</p>
-                ${post.image_url ? `<img src="${post.image_url}" alt="Post image" class="img-fluid mt-2" style="max-height: 200px;">` : ''}
+    async refreshAuthToken() {
+        try {
+            const response = await fetch(this.apiBaseUrl + '/auth/refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    refresh_token: this.refreshToken
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.authToken = result.tokens.access_token;
+                localStorage.setItem('authToken', this.authToken);
+            } else {
+                this.logout();
+            }
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+            this.logout();
+        }
+    }
+    
+    // Content Generation Methods
+    async generateContent(prompt, contentType, targetAudience) {
+        try {
+            this.showLoading();
+            const response = await this.apiCall('/generate-content', 'POST', {
+                prompt: prompt,
+                content_type: contentType,
+                target_audience: targetAudience
+            });
+            
+            if (response.success) {
+                this.displayGeneratedContent(response.content);
+                this.showNotification('Content generated successfully!', 'success');
+            } else {
+                this.showNotification(response.error || 'Content generation failed', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Content generation failed: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    displayGeneratedContent(content) {
+        const contentDiv = document.getElementById('generatedContent');
+        contentDiv.innerHTML = `
+            <div class="bg-gray-50 rounded-lg p-6 border">
+                <div class="whitespace-pre-wrap text-gray-800">${content}</div>
             </div>
-        </div>
-    `).join('');
-}
-
-function getStatusColor(status) {
-    const colors = {
-        'draft': 'secondary',
-        'scheduled': 'warning',
-        'published': 'success',
-        'failed': 'danger'
-    };
-    return colors[status] || 'secondary';
-}
-
-function togglePostsList() {
-    const postsSection = document.getElementById('posts-section');
-    if (postsSection) {
-        postsSection.style.display = postsSection.style.display === 'none' ? 'block' : 'none';
-    }
-}
-
-function triggerFileUpload() {
-    showPDFUploadModal();
-}
-
-async function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    if (file.type !== 'application/pdf') {
-        showToast('error', 'Please select a PDF file');
-        return;
+        `;
     }
     
-    // Display the selected file in the modal
-    displaySelectedFile(file);
-}
-
-function showToast(type, message) {
-    const toast = document.getElementById('notification-toast');
-    const toastMessage = document.querySelector('.toast-message');
+    async generateImage(prompt) {
+        try {
+            this.showLoading();
+            const response = await this.apiCall('/generate-image', 'POST', {
+                prompt: prompt
+            });
+            
+            if (response.success) {
+                this.displayGeneratedImage(response.image_url);
+                this.showNotification('Image generated successfully!', 'success');
+            } else {
+                this.showNotification(response.error || 'Image generation failed', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Image generation failed: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
     
-    if (toast && toastMessage) {
-        toastMessage.textContent = message;
-        toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'success'} border-0`;
+    displayGeneratedImage(imageUrl) {
+        const imageDiv = document.getElementById('generatedImage');
+        const imagePreview = document.getElementById('generatedImagePreview');
         
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-    } else {
-        console.log(`${type.toUpperCase()}: ${message}`);
-    }
-}
-
-function showLinkedInSuccessPopup(postContent) {
-    // Create success popup modal
-    const modalHtml = `
-        <div class="modal fade" id="linkedinSuccessModal" tabindex="-1" aria-labelledby="linkedinSuccessModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content bg-dark text-light">
-                    <div class="modal-header border-secondary">
-                        <h5 class="modal-title" id="linkedinSuccessModalLabel">
-                            <i class="fab fa-linkedin text-primary me-2"></i>
-                            LinkedIn Post Published!
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-success">
-                            <i class="fas fa-check-circle me-2"></i>
-                            Your post has been successfully published to LinkedIn!
-                        </div>
-                        
-                        <div class="card bg-body-secondary">
-                            <div class="card-header">
-                                <small class="text-muted">Published Content:</small>
-                            </div>
-                            <div class="card-body">
-                                <p class="mb-0" style="max-height: 150px; overflow-y: auto;">
-                                    ${postContent.substring(0, 300)}${postContent.length > 300 ? '...' : ''}
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div class="d-flex justify-content-between align-items-center mt-3">
-                            <small class="text-muted">
-                                <i class="fas fa-clock me-1"></i>
-                                Published: ${new Date().toLocaleString()}
-                            </small>
-                            <div>
-                                <a href="https://www.linkedin.com/feed/" target="_blank" class="btn btn-primary btn-sm">
-                                    <i class="fab fa-linkedin me-1"></i>
-                                    View on LinkedIn
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-secondary">
-                        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
-                        <button type="button" class="btn btn-linkedin" onclick="generateContent()">
-                            <i class="fas fa-plus me-1"></i>
-                            Create Another Post
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove existing modal if any
-    const existingModal = document.getElementById('linkedinSuccessModal');
-    if (existingModal) {
-        existingModal.remove();
+        imagePreview.src = imageUrl;
+        imageDiv.classList.remove('hidden');
     }
     
-    // Add modal to body
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('linkedinSuccessModal'));
-    modal.show();
-    
-    // Auto-remove modal after it's hidden
-    document.getElementById('linkedinSuccessModal').addEventListener('hidden.bs.modal', function () {
-        this.remove();
-    });
-}
-
-// Make functions available globally
-window.generateContent = generateContent;
-window.publishPost = publishPost;
-
-async function publishPost() {
-    // Get content from the correct element
-    const generatedTextElement = document.getElementById('generated-text');
-    const content = generatedTextElement ? generatedTextElement.textContent : null;
-    
-    // Get image if it exists
-    const imagePreview = document.getElementById('image-preview');
-    const imageElement = imagePreview ? imagePreview.querySelector('img') : null;
-    const imageUrl = imageElement && imagePreview.style.display !== 'none' ? imageElement.src : null;
-    
-    if (!content || content.trim() === 'Generated content will appear here...') {
-        showToast('error', 'No content to publish. Please generate content first.');
-        return;
-    }
-    
-    try {
-        // First check LinkedIn authentication
-        const statusResponse = await fetch('/api/linkedin-status');
-        const statusData = await statusResponse.json();
+    // Post Management Methods
+    async publishPost() {
+        const content = document.querySelector('#generatedContent .whitespace-pre-wrap')?.textContent;
+        const imageUrl = document.getElementById('generatedImagePreview')?.src;
         
-        if (!statusData.authenticated) {
-            showToast('warning', 'Please connect to LinkedIn first to post');
-            // Show LinkedIn connection prompt
-            const statusDiv = document.getElementById('linkedin-status');
-            if (statusDiv) statusDiv.style.display = 'block';
+        if (!content) {
+            this.showNotification('No content to publish', 'warning');
             return;
         }
         
-        showToast('info', 'Publishing post to LinkedIn...');
-        
-        const response = await fetch('/api/create-post', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                content: content.trim(),
-                schedule_time: null, // Immediate posting
+        try {
+            this.showLoading();
+            const response = await this.apiCall('/create-post', 'POST', {
+                content: content,
                 image_url: imageUrl,
                 post_type: imageUrl ? 'image' : 'text'
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            if (data.status === 'published') {
-                // Show success popup only when actually published to LinkedIn
-                showLinkedInSuccessPopup(content.trim());
-                showToast('success', 'Post published successfully to LinkedIn!');
-            } else if (data.status === 'failed') {
-                showToast('error', data.error_message || 'Failed to publish to LinkedIn');
+            });
+            
+            if (response.success) {
+                this.showNotification('Post published successfully!', 'success');
+                this.loadDashboardData();
             } else {
-                showToast('success', 'Post saved successfully!');
+                this.showNotification(response.error || 'Publishing failed', 'error');
             }
-            
-            // Clear the form
-            const contentPrompt = document.getElementById('content-prompt');
-            const contentPreview = document.getElementById('content-preview');
-            
-            if (contentPrompt) contentPrompt.value = '';
-            if (contentPreview) contentPreview.style.display = 'none';
-            
-            // Refresh data
-            fetchStats();
-            fetchPosts();
-        } else {
-            showToast('error', data.error || 'Failed to create post');
+        } catch (error) {
+            this.showNotification('Publishing failed: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async schedulePost() {
+        const content = document.querySelector('#generatedContent .whitespace-pre-wrap')?.textContent;
+        const imageUrl = document.getElementById('generatedImagePreview')?.src;
+        
+        if (!content) {
+            this.showNotification('No content to schedule', 'warning');
+            return;
         }
         
-    } catch (error) {
-        console.error('Error publishing post:', error);
-        showToast('error', 'Error publishing post: ' + error.message);
-    }
-}
-
-// Multi-page Navigation
-function switchPage(pageName) {
-    // Hide all pages
-    document.querySelectorAll(".page-content").forEach(page => {
-        page.classList.remove("active");
-    });
-    
-    // Show selected page
-    const targetPage = document.getElementById(`${pageName}-page`);
-    if (targetPage) {
-        targetPage.classList.add("active");
+        // Show schedule modal (implement later)
+        this.showNotification('Schedule feature coming soon!', 'info');
     }
     
-    // Update navigation
-    document.querySelectorAll("[data-page]").forEach(link => {
-        link.classList.remove("active");
-    });
-    
-    document.querySelector(`[data-page="${pageName}"]`)?.classList.add("active");
-    
-    // Load page-specific data
-    switch(pageName) {
-        case "dashboard":
-            loadDashboardData();
-            break;
-        case "campaigns":
-            loadCampaigns();
-            break;
-        case "analytics":
-            loadAnalytics();
-            break;
-    }
-}
-
-function loadDashboardData() {
-    fetchStats();
-    fetchFiles();
-    fetchPosts();
-}
-
-function loadCampaigns() {
-    fetch("/api/marketing/campaigns")
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.campaigns.length > 0) {
-                displayCampaigns(data.campaigns);
+    // Dashboard Methods
+    async loadDashboardData() {
+        try {
+            const [statsResponse, postsResponse] = await Promise.all([
+                this.apiCall('/dashboard/stats'),
+                this.apiCall('/posts/recent')
+            ]);
+            
+            if (statsResponse.success) {
+                this.updateDashboardStats(statsResponse.data);
             }
-        })
-        .catch(error => console.error("Error loading campaigns:", error));
-}
-
-function displayCampaigns(campaigns) {
-    const campaignsList = document.getElementById("campaigns-list");
-    if (!campaignsList) return;
+            
+            if (postsResponse.success) {
+                this.updateRecentPosts(postsResponse.posts);
+            }
+        } catch (error) {
+            console.error('Failed to load dashboard data:', error);
+        }
+    }
     
-    campaignsList.innerHTML = campaigns.map(campaign => `
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title">${campaign.campaign_name}</h6>
-                        <p class="card-text text-muted">
-                            <small>Created: ${new Date(campaign.created_at).toLocaleDateString()}</small>
-                            <br>
-                            <small>Posts: ${campaign.posts_generated} | Target: ${campaign.engagement_target}</small>
-                        </p>
-                    </div>
-                    <div>
-                        <span class="badge ${campaign.is_active ? "bg-success" : "bg-secondary"}">
-                            ${campaign.is_active ? "Active" : "Inactive"}
-                        </span>
-                    </div>
+    updateDashboardStats(stats) {
+        document.getElementById('totalPosts').textContent = stats.total_posts || 0;
+        document.getElementById('engagementRate').textContent = (stats.engagement_rate || 0) + '%';
+        document.getElementById('totalConnections').textContent = stats.total_connections || 0;
+        document.getElementById('activeCampaigns').textContent = stats.active_campaigns || 0;
+    }
+    
+    updateRecentPosts(posts) {
+        const container = document.getElementById('recentPosts');
+        
+        if (!posts || posts.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-gray-500 py-8">
+                    <i class="fas fa-inbox text-4xl mb-4"></i>
+                    <p>No posts yet</p>
+                    <p class="text-sm">Create your first post to see it here</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = posts.map(post => `
+            <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex items-start justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-900">${post.status}</span>
+                    <span class="text-xs text-gray-500">${new Date(post.created_at).toLocaleDateString()}</span>
+                </div>
+                <p class="text-sm text-gray-700 line-clamp-3">${post.content}</p>
+                <div class="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                    <span><i class="fas fa-heart mr-1"></i>${post.likes_count || 0}</span>
+                    <span><i class="fas fa-comment mr-1"></i>${post.comments_count || 0}</span>
+                    <span><i class="fas fa-share mr-1"></i>${post.shares_count || 0}</span>
                 </div>
             </div>
-        </div>
-    `).join("");
-}
-
-function loadAnalytics() {
-    fetchStats().then(() => {
-        // Update analytics page with same data
-        const stats = document.getElementById("total-posts-analytics");
-        if (stats) {
-            stats.textContent = document.getElementById("total-posts")?.textContent || "0";
-        }
-        
-        const connections = document.getElementById("total-connections-analytics");
-        if (connections) {
-            connections.textContent = document.getElementById("total-connections")?.textContent || "0";
-        }
-        
-        const campaigns = document.getElementById("active-campaigns-analytics");
-        if (campaigns) {
-            campaigns.textContent = document.getElementById("active-campaigns")?.textContent || "0";
-        }
-    });
-}
-
-function loadInitialData() {
-    console.log("Initial data loaded");
-    fetchStats();
-    fetchFiles();
-    fetchPosts();
-}
-
-function toggleImagePrompt() {
-    const checkbox = document.getElementById("enable-image-gen");
-    const imagePromptGroup = document.getElementById("image-prompt-group");
+        `).join('');
+    }
     
-    if (checkbox && imagePromptGroup) {
-        imagePromptGroup.style.display = checkbox.checked ? "block" : "none";
+    // Chart Initialization
+    initializeCharts() {
+        // Initialize engagement chart
+        const ctx = document.getElementById('engagementChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Engagement',
+                        data: [12, 19, 3, 5, 2, 3, 9],
+                        borderColor: '#0a66c2',
+                        backgroundColor: 'rgba(10, 102, 194, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
     }
-}
-
-function handleFileSelect(event) {
-    const file = event.target.files[0];
-    if (file && file.type === "application/pdf") {
-        displaySelectedFile(file);
-    } else {
-        showToast("error", "Please select a valid PDF file");
-        event.target.value = "";
+    
+    // Section Data Loading
+    loadSectionData(sectionName) {
+        switch (sectionName) {
+            case 'dashboard':
+                this.loadDashboardData();
+                break;
+            case 'content-generator':
+                // Content generator is ready
+                break;
+            case 'post-scheduler':
+                this.loadScheduledPosts();
+                break;
+            case 'automation':
+                this.loadAutomationData();
+                break;
+            case 'campaigns':
+                this.loadCampaigns();
+                break;
+            case 'analytics':
+                this.loadAnalytics();
+                break;
+            case 'file-manager':
+                this.loadFiles();
+                break;
+            case 'linkedin-integration':
+                this.loadLinkedInStatus();
+                break;
+        }
     }
-}
-
-function createSimpleCampaign() {
-    showToast("info", "Campaign creation feature will be available in the next update!");
-}
-
-function closeModal() {
-    // Simple function for any remaining modal references
-    console.log("Modal closed");
-}
-
-// Modal functions
-function showPDFUploadModal() {
-    document.getElementById("pdf-modal").style.display = "flex";
-}
-
-function closePDFModal() {
-    document.getElementById("pdf-modal").style.display = "none";
-}
-
-function showCampaignModal() {
-    document.getElementById("campaign-modal").style.display = "flex";
-}
-
-function closeCampaignModal() {
-    document.getElementById("campaign-modal").style.display = "none";
-}
-
-function closeAutomationModal() {
-    document.getElementById("automation-modal").style.display = "none";
-}
-
-function processPDF() {
-    showToast("info", "PDF processing feature coming soon!");
-}
-
-function createMarketingCampaign() {
-    const campaignName = document.getElementById("campaign-name").value;
-    if (campaignName) {
-        showToast("success", `Campaign "${campaignName}" created successfully!`);
-        closeCampaignModal();
-    } else {
-        showToast("error", "Please enter a campaign name");
+    
+    async loadScheduledPosts() {
+        // Implement scheduled posts loading
+        console.log('Loading scheduled posts...');
     }
-}
-
-function smartCampaignFromPDF() {
-    showCampaignModal();
-}
-
-function saveAutomationSettings() {
-    showToast("success", "Automation settings saved!");
-    closeAutomationModal();
-}
-
-function removeSelectedFile() {
-    document.getElementById("uploaded-file").style.display = "none";
-    document.getElementById("upload-area").style.display = "block";
-    document.getElementById("file-upload").value = "";
-}
-
-
-// Check LinkedIn authentication status on page load
-async function checkLinkedInAuth() {
-    try {
-        const response = await fetch("/api/linkedin-status");
-        const data = await response.json();
+    
+    async loadAutomationData() {
+        // Implement automation data loading
+        console.log('Loading automation data...');
+    }
+    
+    async loadCampaigns() {
+        // Implement campaigns loading
+        console.log('Loading campaigns...');
+    }
+    
+    async loadAnalytics() {
+        // Implement analytics loading
+        console.log('Loading analytics...');
+    }
+    
+    async loadFiles() {
+        // Implement file loading
+        console.log('Loading files...');
+    }
+    
+    async loadLinkedInStatus() {
+        // Implement LinkedIn status loading
+        console.log('Loading LinkedIn status...');
+    }
+    
+    // Event Listeners
+    setupEventListeners() {
+        // Login form
+        document.getElementById('loginFormElement').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            this.login(username, password);
+        });
         
-        const statusDiv = document.getElementById("linkedin-status");
-        const statusMessage = document.getElementById("status-message");
-        const connectBtn = document.getElementById("connect-linkedin-btn");
+        // Register form
+        document.getElementById('registerFormElement').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const userData = {
+                username: document.getElementById('registerUsername').value,
+                email: document.getElementById('registerEmail').value,
+                password: document.getElementById('registerPassword').value,
+                first_name: document.getElementById('registerFirstName').value,
+                last_name: document.getElementById('registerLastName').value
+            };
+            this.register(userData);
+        });
         
-        if (statusDiv && statusMessage && connectBtn) {
-            if (data.authenticated) {
-                statusDiv.style.display = "none";
-            } else {
-                statusDiv.style.display = "block";
-                connectBtn.onclick = () => window.location.href = "/auth/linkedin";
+        // Content generator form
+        document.getElementById('contentGeneratorForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const prompt = document.getElementById('contentPrompt').value;
+            const contentType = document.getElementById('contentType').value;
+            const targetAudience = document.getElementById('targetAudience').value;
+            this.generateContent(prompt, contentType, targetAudience);
+        });
+        
+        // Sidebar toggle
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        });
+        
+        // User menu toggle
+        document.getElementById('userMenuButton').addEventListener('click', () => {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('hidden');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const userMenu = document.getElementById('userMenuButton');
+            const dropdown = document.getElementById('userDropdown');
+            
+            if (!userMenu.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.add('hidden');
             }
-        }
-    } catch (error) {
-        console.error("Error checking LinkedIn auth:", error);
+        });
     }
 }
 
-// Handle authentication success/error from URL params
-function handleAuthCallback() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const authStatus = urlParams.get("auth");
-    
-    if (authStatus === "success") {
-        showToast("success", "LinkedIn connected successfully!");
-        checkLinkedInAuth();
-        // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (authStatus === "error") {
-        showToast("error", "LinkedIn authentication failed. Please try again.");
-        // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname);
+// Global functions for HTML onclick handlers
+function showLoginForm() {
+    document.getElementById('loginForm').classList.remove('hidden');
+    document.getElementById('registerForm').classList.add('hidden');
+}
+
+function showRegisterForm() {
+    document.getElementById('loginForm').classList.add('hidden');
+    document.getElementById('registerForm').classList.remove('hidden');
+}
+
+function showSection(sectionName) {
+    window.app.showSection(sectionName);
+}
+
+function logout() {
+    window.app.logout();
+}
+
+function generateImage() {
+    const prompt = document.getElementById('contentPrompt').value;
+    if (!prompt) {
+        window.app.showNotification('Please enter a content prompt first', 'warning');
+        return;
     }
+    window.app.generateImage(prompt);
 }
 
-// Initialize LinkedIn auth checking
-function initializeLinkedInAuth() {
-    handleAuthCallback();
-    checkLinkedInAuth();
+function publishPost() {
+    window.app.publishPost();
 }
 
-// Call initialization when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeLinkedInAuth);
-} else {
-    initializeLinkedInAuth();
+function schedulePost() {
+    window.app.schedulePost();
 }
+
+function showScheduleModal() {
+    window.app.showNotification('Schedule modal coming soon!', 'info');
+}
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new LinkedInMarketingAgent();
+});
 
