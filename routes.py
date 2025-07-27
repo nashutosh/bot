@@ -472,38 +472,7 @@ def register_routes(app):
             logging.error(f"Error in create_marketing_campaign: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
-    @app.route('/api/automation/rules', methods=['GET', 'POST'])
-    def automation_rules():
-        """Get or create automation rules"""
-        try:
-            if request.method == 'GET':
-                rules = AutomationRule.query.filter_by(is_active=True).all()
-                return jsonify({
-                    'success': True,
-                    'rules': [rule.to_dict() for rule in rules]
-                })
-            
-            elif request.method == 'POST':
-                data = request.get_json()
-                
-                rule = AutomationRule()
-                rule.rule_name = data.get('rule_name', '')
-                rule.rule_type = data.get('rule_type', '')
-                rule.target_criteria = data.get('target_criteria', {})
-                rule.action_limit = data.get('action_limit', 50)
-                
-                db.session.add(rule)
-                db.session.commit()
-                
-                return jsonify({
-                    'success': True,
-                    'rule_id': rule.id,
-                    'message': 'Automation rule created'
-                })
-                
-        except Exception as e:
-            logging.error(f"Error in automation_rules: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+
 
     @app.route('/api/marketing/campaigns', methods=['GET'])
     def get_marketing_campaigns():
@@ -596,16 +565,483 @@ def register_routes(app):
     @app.route("/api/linkedin-status")
     def linkedin_status():
         """Check LinkedIn authentication status"""
-        token = session.get("linkedin_token")
-        if token:
-            linkedin_service.access_token = token
-            return jsonify({"authenticated": True})
-        else:
+        try:
+            # Check if user has stored token
+            user = g.current_user
+            if user.linkedin_access_token:
+                linkedin_service.access_token = user.linkedin_access_token
+            
+            status = linkedin_service.get_connection_status()
+            
             return jsonify({
-                "authenticated": False,
-                "auth_url": linkedin_service.get_authorization_url()
+                'success': True,
+                'connected': status['connected'],
+                'profile': status.get('profile'),
+                'auth_url': status.get('auth_url'),
+                'error': status.get('error')
             })
-
+            
+        except Exception as e:
+            logger.error(f"Error checking LinkedIn status: {str(e)}")
+            return jsonify({
+                'success': False,
+                'connected': False,
+                'auth_url': linkedin_service.get_authorization_url(),
+                'error': str(e)
+            }), 500
+    
+    # Marketing Manager Routes
+    @app.route('/api/marketing/manager/dashboard', methods=['GET'])
+    def marketing_manager_dashboard():
+        """Get marketing manager dashboard data"""
+        try:
+            user_id = g.current_user.id
+            
+            # Get campaign statistics
+            total_campaigns = MarketingCampaign.query.filter_by(user_id=user_id).count()
+            active_campaigns = MarketingCampaign.query.filter_by(user_id=user_id, status='active').count()
+            completed_campaigns = MarketingCampaign.query.filter_by(user_id=user_id, status='completed').count()
+            
+            # Get recent campaigns
+            recent_campaigns = MarketingCampaign.query.filter_by(user_id=user_id)\
+                .order_by(MarketingCampaign.created_at.desc()).limit(5).all()
+            
+            # Get automation statistics
+            automation_stats = linkedin_automation.get_automation_statistics()
+            
+            # Calculate total engagement across all campaigns
+            total_engagement = db.session.query(
+                db.func.sum(MarketingCampaign.total_engagement)
+            ).filter_by(user_id=user_id).scalar() or 0
+            
+            # Calculate total reach
+            total_reach = db.session.query(
+                db.func.sum(MarketingCampaign.total_reach)
+            ).filter_by(user_id=user_id).scalar() or 0
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'campaigns': {
+                        'total': total_campaigns,
+                        'active': active_campaigns,
+                        'completed': completed_campaigns
+                    },
+                    'engagement': {
+                        'total': total_engagement,
+                        'average': total_engagement / max(total_campaigns, 1)
+                    },
+                    'reach': {
+                        'total': total_reach,
+                        'average': total_reach / max(total_campaigns, 1)
+                    },
+                    'automation': automation_stats.get('data', {}) if automation_stats['success'] else {},
+                    'recent_campaigns': [campaign.to_dict() for campaign in recent_campaigns]
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in marketing_manager_dashboard: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/marketing/campaigns', methods=['GET', 'POST'])
+    def marketing_campaigns():
+        """Get all marketing campaigns or create new one"""
+        try:
+            user_id = g.current_user.id
+            
+            if request.method == 'GET':
+                campaigns = MarketingCampaign.query.filter_by(user_id=user_id)\
+                    .order_by(MarketingCampaign.created_at.desc()).all()
+                
+                return jsonify({
+                    'success': True,
+                    'campaigns': [campaign.to_dict() for campaign in campaigns]
+                })
+            
+            elif request.method == 'POST':
+                data = request.get_json()
+                
+                # Validate required fields
+                required_fields = ['name', 'description', 'campaign_type']
+                for field in required_fields:
+                    if not data.get(field):
+                        return jsonify({'success': False, 'error': f'{field} is required'}), 400
+                
+                # Create new campaign
+                campaign = MarketingCampaign(
+                    user_id=user_id,
+                    name=data['name'],
+                    description=data['description'],
+                    campaign_type=data['campaign_type'],
+                    target_audience=data.get('target_audience', {}),
+                    content_strategy=data.get('content_strategy', {}),
+                    kpis=data.get('kpis', {}),
+                    budget=data.get('budget', 0.0),
+                    start_date=datetime.utcnow(),
+                    status='draft'
+                )
+                
+                db.session.add(campaign)
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'campaign': campaign.to_dict(),
+                    'message': 'Campaign created successfully'
+                })
+                
+        except Exception as e:
+            logger.error(f"Error in marketing_campaigns: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/marketing/campaigns/<int:campaign_id>', methods=['GET', 'PUT', 'DELETE'])
+    def marketing_campaign_detail(campaign_id):
+        """Get, update, or delete a specific marketing campaign"""
+        try:
+            user_id = g.current_user.id
+            campaign = MarketingCampaign.query.filter_by(id=campaign_id, user_id=user_id).first()
+            
+            if not campaign:
+                return jsonify({'success': False, 'error': 'Campaign not found'}), 404
+            
+            if request.method == 'GET':
+                # Get campaign posts
+                posts = Post.query.filter_by(user_id=user_id)\
+                    .filter(Post.created_at >= campaign.start_date).all()
+                
+                campaign_data = campaign.to_dict()
+                campaign_data['posts'] = [post.to_dict() for post in posts]
+                
+                return jsonify({
+                    'success': True,
+                    'campaign': campaign_data
+                })
+            
+            elif request.method == 'PUT':
+                data = request.get_json()
+                
+                # Update campaign fields
+                if 'name' in data:
+                    campaign.name = data['name']
+                if 'description' in data:
+                    campaign.description = data['description']
+                if 'status' in data:
+                    campaign.status = data['status']
+                if 'target_audience' in data:
+                    campaign.target_audience = data['target_audience']
+                if 'content_strategy' in data:
+                    campaign.content_strategy = data['content_strategy']
+                if 'budget' in data:
+                    campaign.budget = data['budget']
+                
+                campaign.updated_at = datetime.utcnow()
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'campaign': campaign.to_dict(),
+                    'message': 'Campaign updated successfully'
+                })
+            
+            elif request.method == 'DELETE':
+                db.session.delete(campaign)
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'Campaign deleted successfully'
+                })
+                
+        except Exception as e:
+            logger.error(f"Error in marketing_campaign_detail: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/marketing/campaigns/<int:campaign_id>/launch', methods=['POST'])
+    def launch_marketing_campaign(campaign_id):
+        """Launch a marketing campaign"""
+        try:
+            user_id = g.current_user.id
+            campaign = MarketingCampaign.query.filter_by(id=campaign_id, user_id=user_id).first()
+            
+            if not campaign:
+                return jsonify({'success': False, 'error': 'Campaign not found'}), 404
+            
+            data = request.get_json()
+            pdf_content = data.get('pdf_content', '')
+            product_info = data.get('product_info', {})
+            
+            # Generate campaign posts
+            result = linkedin_automation.schedule_marketing_campaign(
+                pdf_content, 
+                product_info,
+                campaign_id
+            )
+            
+            if result['success']:
+                # Update campaign status
+                campaign.status = 'active'
+                campaign.start_date = datetime.utcnow()
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'campaign': campaign.to_dict(),
+                    'posts_scheduled': result['scheduled_posts'],
+                    'message': f'Campaign launched with {result["scheduled_posts"]} posts scheduled'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': result.get('error', 'Failed to launch campaign')
+                }), 500
+                
+        except Exception as e:
+            logger.error(f"Error launching campaign: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # Automation Statistics and Management
+    @app.route('/api/automation/statistics', methods=['GET'])
+    def automation_statistics():
+        """Get automation statistics"""
+        try:
+            stats = linkedin_automation.get_automation_statistics()
+            return jsonify(stats)
+            
+        except Exception as e:
+            logger.error(f"Error getting automation statistics: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/automation/rules', methods=['GET', 'POST'])
+    def automation_rules():
+        """Get or create automation rules"""
+        try:
+            user_id = g.current_user.id
+            
+            if request.method == 'GET':
+                rules = AutomationRule.query.filter_by(user_id=user_id).all()
+                return jsonify({
+                    'success': True,
+                    'rules': [rule.to_dict() for rule in rules]
+                })
+            
+            elif request.method == 'POST':
+                data = request.get_json()
+                
+                # Validate required fields
+                required_fields = ['name', 'rule_type', 'daily_limit']
+                for field in required_fields:
+                    if field not in data:
+                        return jsonify({'success': False, 'error': f'{field} is required'}), 400
+                
+                rule = AutomationRule(
+                    user_id=user_id,
+                    name=data['name'],
+                    rule_type=data['rule_type'],
+                    target_criteria=data.get('target_criteria', {}),
+                    action_template=data.get('action_template', ''),
+                    daily_limit=data['daily_limit'],
+                    is_active=data.get('is_active', True)
+                )
+                
+                db.session.add(rule)
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'rule': rule.to_dict(),
+                    'message': 'Automation rule created successfully'
+                })
+                
+        except Exception as e:
+            logger.error(f"Error in automation_rules: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/automation/rules/<int:rule_id>', methods=['PUT', 'DELETE'])
+    def automation_rule_detail(rule_id):
+        """Update or delete automation rule"""
+        try:
+            user_id = g.current_user.id
+            rule = AutomationRule.query.filter_by(id=rule_id, user_id=user_id).first()
+            
+            if not rule:
+                return jsonify({'success': False, 'error': 'Rule not found'}), 404
+            
+            if request.method == 'PUT':
+                data = request.get_json()
+                
+                # Update rule fields
+                if 'name' in data:
+                    rule.name = data['name']
+                if 'is_active' in data:
+                    rule.is_active = data['is_active']
+                if 'daily_limit' in data:
+                    rule.daily_limit = data['daily_limit']
+                if 'target_criteria' in data:
+                    rule.target_criteria = data['target_criteria']
+                if 'action_template' in data:
+                    rule.action_template = data['action_template']
+                
+                rule.updated_at = datetime.utcnow()
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'rule': rule.to_dict(),
+                    'message': 'Rule updated successfully'
+                })
+            
+            elif request.method == 'DELETE':
+                db.session.delete(rule)
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'Rule deleted successfully'
+                })
+                
+        except Exception as e:
+            logger.error(f"Error in automation_rule_detail: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/automation/execute', methods=['POST'])
+    def execute_automation():
+        """Execute automation rules"""
+        try:
+            data = request.get_json()
+            rule_type = data.get('rule_type')
+            rule_id = data.get('rule_id')
+            
+            if rule_id:
+                rule = AutomationRule.query.get(rule_id)
+                if not rule or not rule.is_active:
+                    return jsonify({'success': False, 'error': 'Rule not found or inactive'}), 404
+                
+                if rule.rule_type == 'auto_connect':
+                    target_profiles = data.get('target_profiles', [])
+                    result = linkedin_automation.auto_send_connections(
+                        target_profiles, 
+                        rule.action_template,
+                        rule_id
+                    )
+                elif rule.rule_type == 'auto_follow':
+                    result = linkedin_automation.auto_follow_successful_people(
+                        rule.target_criteria,
+                        rule_id
+                    )
+                elif rule.rule_type == 'auto_like' or rule.rule_type == 'auto_comment':
+                    keywords = rule.target_criteria.get('keywords', [])
+                    result = linkedin_automation.auto_engage_with_posts(
+                        keywords,
+                        rule_id
+                    )
+                else:
+                    return jsonify({'success': False, 'error': 'Unknown rule type'}), 400
+                
+                return jsonify(result)
+            
+            elif rule_type == 'accept_connections':
+                result = linkedin_automation.auto_accept_connections()
+            elif rule_type == 'auto_engage':
+                keywords = data.get('keywords', [])
+                result = linkedin_automation.auto_engage_with_posts(keywords)
+            else:
+                return jsonify({'success': False, 'error': 'Rule type or rule_id required'}), 400
+            
+            return jsonify(result)
+            
+        except Exception as e:
+            logger.error(f"Error executing automation: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # Enhanced Post Publishing with Retry Logic
+    @app.route('/api/posts/publish-with-retry', methods=['POST'])
+    @limiter.limit("10 per hour")
+    def publish_post_with_retry():
+        """Publish post with retry logic and status updates"""
+        try:
+            data = request.get_json()
+            user_id = g.current_user.id
+            
+            content = data.get('content', '').strip()
+            if not content:
+                return jsonify({'success': False, 'error': 'Content is required'}), 400
+            
+            # Create post record
+            post = Post(
+                user_id=user_id,
+                content=content,
+                hashtags=data.get('hashtags', []),
+                image_url=data.get('image_url'),
+                video_url=data.get('video_url'),
+                article_url=data.get('article_url'),
+                post_type=data.get('post_type', 'text'),
+                status='publishing'
+            )
+            
+            db.session.add(post)
+            db.session.commit()
+            
+            # Attempt to publish with retry logic
+            max_retries = 3
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    # Attempt LinkedIn API call
+                    linkedin_result = linkedin_service.create_post(
+                        content=content,
+                        image_url=data.get('image_url'),
+                        video_url=data.get('video_url')
+                    )
+                    
+                    if linkedin_result.get('success'):
+                        # Update post status
+                        post.status = 'published'
+                        post.linkedin_url = linkedin_result.get('post_url')
+                        post.linkedin_post_id = linkedin_result.get('post_id')
+                        post.published_at = datetime.utcnow()
+                        db.session.commit()
+                        
+                        return jsonify({
+                            'success': True,
+                            'post_id': post.id,
+                            'linkedin_url': post.linkedin_url,
+                            'linkedin_post_id': post.linkedin_post_id,
+                            'message': 'Post published successfully to LinkedIn!',
+                            'retry_count': retry_count
+                        })
+                    else:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            # Wait before retry (exponential backoff)
+                            import time
+                            time.sleep(2 ** retry_count)
+                        
+                except Exception as e:
+                    retry_count += 1
+                    logger.warning(f"Publish attempt {retry_count} failed: {str(e)}")
+                    
+                    if retry_count < max_retries:
+                        import time
+                        time.sleep(2 ** retry_count)
+            
+            # All retries failed
+            post.status = 'failed'
+            post.error_message = 'Failed to publish after multiple attempts'
+            db.session.commit()
+            
+            return jsonify({
+                'success': False,
+                'post_id': post.id,
+                'error': 'Failed to publish after multiple retries',
+                'retry_count': retry_count
+            }), 500
+            
+        except Exception as e:
+            logger.error(f"Publish with retry error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
     # Advanced Image Generation Routes
     @app.route('/api/image/generate-advanced', methods=['POST'])
     @limiter.limit("10 per minute")
@@ -672,247 +1108,5 @@ def register_routes(app):
             
         except Exception as e:
             logger.error(f"Image variations error: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 500
-    
-    # Advanced Automation Routes
-    @app.route('/api/automation/launch-campaign', methods=['POST'])
-    @limiter.limit("3 per hour")
-    def launch_automated_campaign():
-        """Launch an automated marketing campaign"""
-        try:
-            data = request.get_json()
-            user_id = g.current_user.id
-            
-            # Validate required fields
-            required_fields = ['name', 'target_audience', 'content_themes', 'duration_days']
-            for field in required_fields:
-                if not data.get(field):
-                    return jsonify({'success': False, 'error': f'{field} is required'}), 400
-            
-            from automation_engine import automation_engine, CampaignConfig
-            import asyncio
-            
-            # Create campaign configuration
-            campaign_config = CampaignConfig(
-                name=data['name'],
-                target_audience=data['target_audience'],
-                content_themes=data['content_themes'],
-                posting_schedule=data.get('posting_schedule', {'times_per_day': 1, 'optimal_times': []}),
-                duration_days=data['duration_days'],
-                daily_post_limit=data.get('daily_post_limit', 2),
-                engagement_goals=data.get('engagement_goals', {'likes': 50, 'comments': 10, 'shares': 5})
-            )
-            
-            # Launch campaign
-            result = asyncio.run(automation_engine.launch_automated_campaign(user_id, campaign_config))
-            
-            return jsonify(result)
-            
-        except Exception as e:
-            logger.error(f"Campaign launch error: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 500
-    
-    @app.route('/api/automation/setup-auto-follow', methods=['POST'])
-    @limiter.limit("2 per hour")
-    def setup_auto_follow():
-        """Set up automated following system"""
-        try:
-            data = request.get_json()
-            user_id = g.current_user.id
-            
-            # Validate required fields
-            if not data.get('categories') or not data.get('connection_message_template'):
-                return jsonify({'success': False, 'error': 'Categories and message template are required'}), 400
-            
-            from automation_engine import automation_engine, AutoFollowConfig, TargetCategory
-            import asyncio
-            
-            # Convert category strings to enums
-            try:
-                categories = [TargetCategory(cat) for cat in data['categories']]
-            except ValueError as e:
-                return jsonify({'success': False, 'error': f'Invalid category: {str(e)}'}), 400
-            
-            # Create auto-follow configuration
-            config = AutoFollowConfig(
-                categories=categories,
-                daily_limit=data.get('daily_limit', 50),
-                connection_message_template=data['connection_message_template'],
-                target_criteria=data.get('target_criteria', {})
-            )
-            
-            # Setup auto-follow system
-            result = asyncio.run(automation_engine.setup_auto_follow_system(user_id, config))
-            
-            return jsonify(result)
-            
-        except Exception as e:
-            logger.error(f"Auto-follow setup error: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 500
-    
-    @app.route('/api/automation/optimize-engagement', methods=['POST'])
-    @limiter.limit("5 per hour")
-    def optimize_engagement():
-        """Automatically optimize engagement based on performance"""
-        try:
-            user_id = g.current_user.id
-            
-            from automation_engine import automation_engine
-            import asyncio
-            
-            result = asyncio.run(automation_engine.optimize_engagement_automatically(user_id))
-            
-            return jsonify(result)
-            
-        except Exception as e:
-            logger.error(f"Engagement optimization error: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 500
-    
-    @app.route('/api/automation/boost-conversations', methods=['POST'])
-    @limiter.limit("3 per hour")
-    def boost_conversations():
-        """Automatically boost conversations and engagement"""
-        try:
-            user_id = g.current_user.id
-            
-            from automation_engine import automation_engine
-            import asyncio
-            
-            result = asyncio.run(automation_engine.boost_conversation_engagement(user_id))
-            
-            return jsonify(result)
-            
-        except Exception as e:
-            logger.error(f"Conversation boosting error: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 500
-    
-    @app.route('/api/automation/campaign-status/<int:campaign_id>', methods=['GET'])
-    def get_campaign_status(campaign_id):
-        """Get status of an automated campaign"""
-        try:
-            user_id = g.current_user.id
-            
-            campaign = MarketingCampaign.query.filter_by(
-                id=campaign_id, 
-                user_id=user_id
-            ).first()
-            
-            if not campaign:
-                return jsonify({'success': False, 'error': 'Campaign not found'}), 404
-            
-            # Get campaign metrics
-            posts_count = Post.query.filter_by(user_id=user_id).filter(
-                Post.created_at >= campaign.start_date
-            ).count()
-            
-            total_engagement = db.session.query(
-                db.func.sum(Post.likes_count + Post.comments_count + Post.shares_count)
-            ).filter_by(user_id=user_id).filter(
-                Post.created_at >= campaign.start_date
-            ).scalar() or 0
-            
-            return jsonify({
-                'success': True,
-                'campaign': {
-                    'id': campaign.id,
-                    'name': campaign.name,
-                    'status': campaign.status,
-                    'start_date': campaign.start_date.isoformat(),
-                    'end_date': campaign.end_date.isoformat() if campaign.end_date else None,
-                    'posts_created': posts_count,
-                    'total_engagement': total_engagement,
-                    'target_audience': campaign.target_audience,
-                    'content_strategy': campaign.content_strategy
-                }
-            })
-            
-        except Exception as e:
-            logger.error(f"Campaign status error: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 500
-    
-    # Enhanced Post Publishing with Retry Logic
-    @app.route('/api/posts/publish-with-retry', methods=['POST'])
-    @limiter.limit("10 per hour")
-    def publish_post_with_retry():
-        """Publish post with retry logic and status updates"""
-        try:
-            data = request.get_json()
-            user_id = g.current_user.id
-            
-            content = data.get('content', '').strip()
-            if not content:
-                return jsonify({'success': False, 'error': 'Content is required'}), 400
-            
-            # Create post record
-            post = Post(
-                user_id=user_id,
-                content=content,
-                hashtags=data.get('hashtags', []),
-                image_url=data.get('image_url'),
-                video_url=data.get('video_url'),
-                article_url=data.get('article_url'),
-                post_type=data.get('post_type', 'text'),
-                status='publishing'
-            )
-            
-            db.session.add(post)
-            db.session.commit()
-            
-            # Attempt to publish with retry logic
-            max_retries = 3
-            retry_count = 0
-            
-            while retry_count < max_retries:
-                try:
-                    # Attempt LinkedIn API call
-                    linkedin_result = linkedin_service.create_post(
-                        content=content,
-                        image_url=data.get('image_url'),
-                        video_url=data.get('video_url')
-                    )
-                    
-                    if linkedin_result.get('success'):
-                        # Update post status
-                        post.status = 'published'
-                        post.linkedin_url = linkedin_result.get('post_url')
-                        post.published_at = datetime.utcnow()
-                        db.session.commit()
-                        
-                        return jsonify({
-                            'success': True,
-                            'post_id': post.id,
-                            'linkedin_url': post.linkedin_url,
-                            'message': 'Post published successfully',
-                            'retry_count': retry_count
-                        })
-                    else:
-                        retry_count += 1
-                        if retry_count < max_retries:
-                            # Wait before retry (exponential backoff)
-                            import time
-                            time.sleep(2 ** retry_count)
-                        
-                except Exception as e:
-                    retry_count += 1
-                    logger.warning(f"Publish attempt {retry_count} failed: {str(e)}")
-                    
-                    if retry_count < max_retries:
-                        import time
-                        time.sleep(2 ** retry_count)
-            
-            # All retries failed
-            post.status = 'failed'
-            post.error_message = 'Failed to publish after multiple attempts'
-            db.session.commit()
-            
-            return jsonify({
-                'success': False,
-                'post_id': post.id,
-                'error': 'Failed to publish after multiple retries',
-                'retry_count': retry_count
-            }), 500
-            
-        except Exception as e:
-            logger.error(f"Publish with retry error: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
