@@ -34,33 +34,18 @@ function bindEventListeners() {
 
     // Existing listeners
     document.getElementById('generate-btn')?.addEventListener('click', generateContent);
-    document.getElementById('upload-pdf-btn')?.addEventListener('click', showPDFUploadModal);
+
     document.getElementById('view-all-posts-btn')?.addEventListener('click', togglePostsList);
-    
-    // PDF upload listeners
-    document.getElementById('file-upload')?.addEventListener('change', handleFileSelect);
-    document.getElementById('process-pdf-btn')?.addEventListener('click', processPDF);
     
     // Image generation toggle
     document.getElementById('enable-image-gen')?.addEventListener('change', toggleImagePrompt);
     
-    // New automation listeners
+    // Automation listeners
     document.getElementById('auto-accept-btn')?.addEventListener('click', autoAcceptConnections);
     document.getElementById('auto-follow-btn')?.addEventListener('click', autoFollowSuccessful);
     document.getElementById('auto-engage-btn')?.addEventListener('click', autoEngagePosts);
-    document.getElementById('create-campaign-btn')?.addEventListener('click', showCampaignModal);
-    document.getElementById('smart-campaign-btn')?.addEventListener('click', smartCampaignFromPDF);
-    document.getElementById('view-automation-btn')?.addEventListener('click', showAutomationModal);
-    
-    // Modal listeners
-    document.querySelectorAll('.close-modal').forEach(btn => {
-        btn.addEventListener('click', closeModal);
-    });
-    
-    document.getElementById('create-campaign')?.addEventListener('click', createMarketingCampaign);
-    document.getElementById('cancel-campaign')?.addEventListener('click', closeModal);
-    document.getElementById('save-automation')?.addEventListener('click', saveAutomationSettings);
-    document.getElementById('cancel-automation')?.addEventListener('click', closeModal);
+    document.getElementById('create-campaign-btn')?.addEventListener('click', createSimpleCampaign);
+
     
     // PDF upload modal listeners
     document.getElementById('cancel-upload')?.addEventListener('click', closePDFModal);
@@ -873,4 +858,13 @@ function handleFileSelect(event) {
         showToast("error", "Please select a valid PDF file");
         event.target.value = "";
     }
+}
+
+function createSimpleCampaign() {
+    showToast("info", "Campaign creation feature will be available in the next update!");
+}
+
+function closeModal() {
+    // Simple function for any remaining modal references
+    console.log("Modal closed");
 }
