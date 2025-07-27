@@ -2,12 +2,17 @@
 Flask>=3.1.1
 flask-sqlalchemy>=3.1.1
 flask-cors>=4.0.0
+flask-limiter>=3.5.0
 gunicorn>=23.0.0
+waitress>=3.0.0
 
 # Database
 SQLAlchemy>=2.0.41
 psycopg2-binary>=2.9.10
 alembic>=1.13.0
+
+# Redis for rate limiting
+redis>=5.0.0
 
 # HTTP requests and utilities
 requests>=2.32.4

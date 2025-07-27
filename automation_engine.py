@@ -7,7 +7,8 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
 import json
-from models import User, Post, MarketingCampaign, AutomationRule, ActionLog, db
+from extensions import db
+from models import User, Post, MarketingCampaign, AutomationRule, ActionLog
 from gemini_service import generate_linkedin_post
 from image_generation_service import image_service
 from linkedin_service import linkedin_service

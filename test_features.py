@@ -13,7 +13,8 @@ from datetime import datetime, timedelta
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app import create_app, db
+from app import create_app
+from extensions import db
 from models import User, Post, MarketingCampaign, AutomationRule
 from auth_service import AuthService
 from automation_engine import automation_engine, CampaignConfig, AutoFollowConfig, TargetCategory

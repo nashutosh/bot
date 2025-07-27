@@ -2,8 +2,8 @@ import os
 import logging
 from datetime import datetime
 from flask import render_template, request, jsonify, current_app, g, Blueprint
-from app import db, limiter
-from models import Post, UploadedFile, AutomationRule, MarketingCampaign, LinkedInProfile, User
+from extensions import db, limiter
+from models import User, Post, UploadedFile, AutomationRule, MarketingCampaign, LinkedInProfile
 from gemini_service import generate_linkedin_post, generate_image_with_gemini
 from stability_service import generate_image_with_stability
 from pdf_service import process_pdf_file

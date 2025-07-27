@@ -14,7 +14,8 @@ from werkzeug.security import generate_password_hash
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app import create_app, db
+from app import create_app
+from extensions import db
 from models import User, Post, MarketingCampaign, AutomationRule, UploadedFile
 
 def create_demo_user():
